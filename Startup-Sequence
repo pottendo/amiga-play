@@ -2,7 +2,7 @@
 ; pottendo hacks
 
 pottendo/hello-world
-;pottendo/hello-pthread
+pottendo/hello-pthread
 ;pottendo/hello-cpp
-pottendo/mandel
-;pottendo/gui-hack
+;pottendo/mandel
+pottendo/gui-hack
