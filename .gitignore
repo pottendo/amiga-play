@@ -1,0 +1,11 @@
+libs
+fpu-libs
+*.o
+*~
+*.adf
+*.hdf
+hello-cpp
+hello-pthread
+mandel
+hello-world
+gui-hack

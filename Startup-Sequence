@@ -1,0 +1,8 @@
+; Startup-Sequence
+; pottendo hacks
+
+pottendo/hello-world
+;pottendo/hello-pthread
+;pottendo/hello-cpp
+pottendo/mandel
+;pottendo/gui-hack
