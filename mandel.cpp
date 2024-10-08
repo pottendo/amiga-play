@@ -15,9 +15,22 @@
 #include <time.h>
 #include <pthread.h>
 #define NO_THREADS 16       // max 16 for Orangecart!
+pthread_mutex_t logmutex;
+void log_msg(const char *s, ...)
+{
+    char t[256];
+    va_list args;
+
+//    pthread_mutex_lock(&logmutex);
+    va_start(args, s);
+    vsnprintf(t, 256, s, args);
+    printf(t);
+//    pthread_mutex_unlock(&logmutex);
+}
 #else 
 //#define sleep(...)
 #define NO_THREADS 1       // singlethreaded
+#define log_msg printf
 #endif
 
 #include <cstring>
@@ -25,7 +38,7 @@
 #include <vector>
 
 #define PIXELW 2 // 2
-#define MAX_ITER 128*4
+#define MAX_ITER 32*2
 #define IMG_W (320*2) // 320
 #define IMG_H (128*2 - 20) // 200
 #define MTYPE double
@@ -39,21 +52,6 @@
 //#define NO_LOG
 #ifdef NO_LOG
 #define log_msg(...) 
-#else
-//#define log_msg printf
-pthread_mutex_t logmutex;
-void log_msg(const char *s, ...)
-{
-    char t[256];
-    va_list args;
-
-//    pthread_mutex_lock(&logmutex);
-    va_start(args, s);
-    vsnprintf(t, 256, s, args);
-    printf(t);
-//    pthread_mutex_unlock(&logmutex);
-}
-
 #endif
 
 #ifdef C64
@@ -163,11 +161,11 @@ void sprite_setup(struct Screen *myScreen)
     viewport = &myScreen->ViewPort;
 
     sprnum = GetSprite(&sprite_ul, 2);
-    printf("sprite ul num = %d\n", sprnum);
+    //printf("sprite ul num = %d\n", sprnum);
     /* Calculate the correct base color register number, */
     /* set up the color registers.                       */
     color_reg = 16 + ((sprnum & 0x06) << 1);
-    printf("color_reg=%d\n", color_reg);
+    //printf("color_reg=%d\n", color_reg);
     SetRGB4(viewport, color_reg + 1, 0xf,  0x0,  0x0);
 
     sprite_ul.x = 0;       /* initialize position and size info    */
@@ -179,11 +177,11 @@ void sprite_setup(struct Screen *myScreen)
     MoveSprite(NULL, &sprite_ul, -1, 20);
 
     sprnum = GetSprite(&sprite_lr, 3);
-    printf("sprite lr num = %d\n", sprnum);
+    //printf("sprite lr num = %d\n", sprnum);
     /* Calculate the correct base color register number, */
     /* set up the color registers.                       */
     color_reg = 16 + ((sprnum & 0x06) << 1);
-    printf("color_reg=%d\n", color_reg);
+    //printf("color_reg=%d\n", color_reg);
     SetRGB4(viewport, color_reg + 1, 0xf,  0x0,  0x0);
 
     sprite_lr.x = 0;       /* initialize position and size info    */
@@ -281,31 +279,32 @@ void amiga_zoom(mandel<MTYPE> *m)
 		if (pIMsg->Code == SELECTDOWN) {
 		    stx = pIMsg->MouseX;
 		    sty = pIMsg->MouseY;
-		    log_msg("mouse select start: (%d,%d)\n", stx, sty);
+		    //log_msg("mouse select start: (%d,%d)\n", stx, sty);
 		    ReportMouse(TRUE, myWindow);
 		    MoveSprite(NULL, &sprite_ul, pIMsg->MouseX -1 , pIMsg->MouseY + 10);
 		}
-		if (pIMsg->Code == SELECTUP) {
-		    ReportMouse(FALSE, myWindow);
-		    MoveSprite(NULL, &sprite_ul, - 1 , 20);
-		    MoveSprite(NULL, &sprite_lr, WINX / 2 - 16, WINY + 4);
-		    if ((stx == pIMsg->MouseX) ||
-			(sty == pIMsg->MouseY) ||
-			(sty < 10) ||
-			(pIMsg->MouseX > WINX) ||
-			(pIMsg->MouseY > WINY))
-		    {
-			log_msg("stx=%d, sty=%d, Mx=%d, My=%d\n", stx, sty, pIMsg->MouseX, pIMsg->MouseY);
-			DisplayBeep(myScreen);
-			break;
-		    }
-		    point_t lu{stx, (uint16_t)(sty - 10)}, rd{(uint16_t)pIMsg->MouseX, (uint16_t)(pIMsg->MouseY - 10)};
-		    m->select_start(lu);
-		    m->select_end(rd);
-		    DisplayBeep(myScreen);
-		    ReportMouse(FALSE, myWindow);
-		}
-		break;
+        if (pIMsg->Code == SELECTUP)
+        {
+            ReportMouse(FALSE, myWindow);
+            MoveSprite(NULL, &sprite_ul, -1, 20);
+            MoveSprite(NULL, &sprite_lr, WINX / 2 - 16, WINY + 4);
+            if ((stx == pIMsg->MouseX) ||
+                (sty == pIMsg->MouseY) ||
+                (sty < 10) ||
+                (pIMsg->MouseX > WINX) ||
+                (pIMsg->MouseY > WINY))
+            {
+                //log_msg("stx=%d, sty=%d, Mx=%d, My=%d\n", stx, sty, pIMsg->MouseX, pIMsg->MouseY);
+                DisplayBeep(myScreen);
+                break;
+            }
+            point_t lu{stx, (uint16_t)(sty - 10)}, rd{(uint16_t)pIMsg->MouseX, (uint16_t)(pIMsg->MouseY - 10)};
+            m->select_start(lu);
+            m->select_end(rd);
+            DisplayBeep(myScreen);
+            ReportMouse(FALSE, myWindow);
+        }
+        break;
 	    }
 	    ReplyMsg( pMsg );
 	}
@@ -349,7 +348,7 @@ int main(void)
 #endif 
         mandel<MTYPE> *m = new mandel<MTYPE>{cv, stacks, -1.5, -1.0, 0.5, 1.0, IMG_W / PIXELW, IMG_H, xrat};
 #ifdef __amiga__
-	amiga_zoom(m);
+    	amiga_zoom(m);
 #else    
         for (size_t i = 0; i < recs.size(); i++)
         {
@@ -357,7 +356,6 @@ int main(void)
             log_msg("%d/%d, zooming into [%d,%d]x[%d,%d]...stacks=%p\n", i, recs.size(), it->lu.x, it->lu.y, it->rd.x, it->rd.y, m->get_stacks());
             m->select_start(it->lu);
             m->select_end(it->rd);
-            //sleep(2);
         }
         col1++; col2++; col3++;
         col1 %= 0xf; if (col1 == 0) col1++;

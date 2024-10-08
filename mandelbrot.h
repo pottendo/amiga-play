@@ -310,7 +310,7 @@ amiga_setpixel(NULL, xk+xo, yk+yo, d);
         myDOUBLE stepx = (xres / thread_no) * ssw * xratio;
         myDOUBLE stepy = (yres / thread_no) * ssh;
         pthread_t th = (pthread_t) 0;
-	log_msg("%s: thread_no = %d\n", __FUNCTION__, thread_no);
+
         if (thread_no > 16)
         {
             if (thread_no != 100)   /* 100 is a dummy to just initialize, don't confuse us with this log */

@@ -6,11 +6,11 @@ XDFTOOL = xdftool
 DISKNAME = hack.adf
 HDISKNAME = playhd.hdf
 CFLAGS = -g -Wall $(OPTIMIZE) $(KICK)
-CPPFLAGS = -g -Wall $(OPTIMIZE) $(KICK) -DPTHREADS 
+CPPFLAGS = -g -Wall $(OPTIMIZE) $(KICK)
 OPTIMIZE = -O3
 LDFLAGS = $(KICK) -N
-CPROGRAMS = gui-hack hello-world hello-pthread
-CPPPROGRAMS = hello-cpp mandel
+CPROGRAMS = hello-world hello-pthread
+CPPPROGRAMS = hello-cpp mandel mandel13
 PROGRAMS = $(CPROGRAMS) $(CPPPROGRAMS)
 COBJECTS = $(addsuffix .o,$(CPROGRAMS))
 CPPOBJECTS = $(addsuffix .o,$(CPPPROGRAMS))
@@ -35,6 +35,7 @@ disk:
 	$(XDFTOOL) $(D) write Startup-Sequence s
 	$(XDFTOOL) $(D) delete pottendo all || exit 0
 	$(XDFTOOL) $(D) makedir pottendo
+	$(XDFTOOL) $(D) write c
 	for f in $(PROGRAMS) ; do \
 		$(XDFTOOL) $(D) write $$f pottendo ; /bin/true ;\
 	done
@@ -61,10 +62,17 @@ gui-hack: gui-hack.o mandellib.o
 	$(STRIP) $@
 
 mandel.o: mandel.cpp mandelbrot.h
-	$(CPLUSPLUS) $(CPPFLAGS) -c $@ $<
+	$(CPLUSPLUS) $(CPPFLAGS) -DPTHREADS -c $<
 
 mandel: mandel.o
 	$(CPLUSPLUS) $(LDFLAGS) -o $@ $^ -lpthread
+	$(STRIP) $@
+
+mandel13.o: mandel.cpp mandelbrot.h
+	$(CPLUSPLUS) -g -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
+
+mandel13: mandel13.o
+	$(CPLUSPLUS) -N -mcrt=nix13 -o $@ $^ -lpthread
 	$(STRIP) $@
 
 %: %.cpp
