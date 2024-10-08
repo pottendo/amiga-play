@@ -7,7 +7,7 @@ If not Warn
 echo Kick1
 pottendo/mandel13
 Else
-echo Kick2+
+type kick
 pottendo/hello-world
 ;pottendo/hello-cpp
 pottendo/mandel
