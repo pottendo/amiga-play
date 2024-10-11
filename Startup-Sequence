@@ -1,11 +1,13 @@
 ; Startup-Sequence
 ; pottendo hacks
 
+;pottendo/time-test
+
 version >kick
 search kick 34.5
 If not Warn
 echo Kick1
-pottendo/mandel13
+;pottendo/mandel13
 Else
 type kick
 pottendo/hello-world

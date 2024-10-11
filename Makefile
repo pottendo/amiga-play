@@ -9,7 +9,7 @@ CFLAGS = -g -Wall $(OPTIMIZE) $(KICK)
 CPPFLAGS = -g -Wall $(OPTIMIZE) $(KICK)
 OPTIMIZE = -O3
 LDFLAGS = $(KICK) -N
-CPROGRAMS = hello-world hello-pthread
+CPROGRAMS = hello-world hello-pthread time-test #bobs-sprites
 CPPPROGRAMS = hello-cpp mandel mandel13
 PROGRAMS = $(CPROGRAMS) $(CPPPROGRAMS)
 COBJECTS = $(addsuffix .o,$(CPROGRAMS))
@@ -51,7 +51,7 @@ $(HDISKNAME): $(PROGRAMS) Startup-Sequence
 	make disk D=$@
 
 #$(CPROGRAMS): $(COBJECTS)
-hello-world: hello-world.o
+hello-world: hello-world.o posix-clockfn.o
 	$(CC) $(LDFLAGS) -o $@ $^
 	$(STRIP) $@
 hello-pthread: hello-pthread.o
@@ -60,24 +60,30 @@ hello-pthread: hello-pthread.o
 gui-hack: gui-hack.o mandellib.o
 	$(CC) $(LDFLAGS) -o $@ $^ -lm
 	$(STRIP) $@
+bobs-sprites: bobs-sprites.o
+	$(CC) $(LDFLAGS) -o $@ $^ -lm
+	$(STRIP) $@
 
 mandel.o: mandel.cpp mandelbrot.h
-	$(CPLUSPLUS) $(CPPFLAGS) -DPTHREADS -c $<
+	$(CPLUSPLUS) $(CPPFLAGS) -DPTHREADS -c $< -o $@
 
-mandel: mandel.o
+mandel: mandel.o posix-clockfnpp.o
 	$(CPLUSPLUS) $(LDFLAGS) -o $@ $^ -lpthread
 	$(STRIP) $@
 
 mandel13.o: mandel.cpp mandelbrot.h
 	$(CPLUSPLUS) -g -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
 
-mandel13: mandel13.o
+mandel13: mandel13.o posix-clockfnpp.o
 	$(CPLUSPLUS) -N -mcrt=nix13 -o $@ $^ -lpthread
 	$(STRIP) $@
 
-%: %.cpp
-	$(CPLUSPLUS) $(CPPFLAGS) $(LDFLAGS) -o $@ $^
+hello-cpp: hello-cpp.o 
+	$(CPLUSPLUS) $(LDFLAGS) -o $@ $^
 	$(STRIP) $@
+
+%.o: %.cpp
+	$(CPLUSPLUS) $(CPPFLAGS) -o $@ -c $^
 
 clean:
 	rm -f $(DISKNAME) $(HDISKNAME) $(PROGRAMS) *.o
