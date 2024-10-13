@@ -49,6 +49,31 @@ void log_msg(const char *s, ...)
 
 // set this to enable direct output on C64 gfx mem.
 // #define C64
+#define BUFSIZE (100)
+#define MYSTRGADWIDTH (200)
+#define MYSTRGADHEIGHT (8)
+
+WORD strBorderData[] =
+    {
+    0,0, MYSTRGADWIDTH + 3,0, MYSTRGADWIDTH + 3,MYSTRGADHEIGHT + 3,
+    0,MYSTRGADHEIGHT + 3, 0,0,
+    };
+struct Border strBorder =
+    {
+    -2,-2,1,0,JAM1,5,strBorderData,NULL,
+    };
+char strBuffer[BUFSIZE];
+char strUndoBuffer[BUFSIZE];
+struct StringInfo strInfo =
+    {
+    strBuffer,strUndoBuffer,0,BUFSIZE, /* compiler sets remaining fields to zero */
+    };
+struct Gadget strGad =
+    {
+    NULL, 20,20,MYSTRGADWIDTH,MYSTRGADHEIGHT,
+    GFLG_GADGHCOMP, GACT_RELVERIFY | GACT_STRINGCENTER,
+    GTYP_STRGADGET, &strBorder, NULL, NULL,0,&strInfo,0,NULL,
+    };
 
 // #define NO_LOG
 #ifdef NO_LOG
@@ -217,7 +242,7 @@ void setup_screen(void)
         0 * WINX / 4, 0 * WINY / 4 + 10,
         WINX, WINY + 10,
         0, 1,
-        IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS | IDCMP_MOUSEMOVE,
+        IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS | IDCMP_MOUSEMOVE | IDCMP_RAWKEY,
         WFLG_SIZEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET | WFLG_CLOSEGADGET | WFLG_ACTIVATE,
         NULL, NULL,
         (char *)title,
@@ -264,7 +289,9 @@ int amiga_setpixel(void *not_used, int x, int y, int col)
         case IDCMP_CLOSEWINDOW:
             ret = 1;
             break;
-        default:;
+        default:
+            log_msg("%s: class = %ld\n", __FUNCTION__, pIMsg->Class);
+            break;
         }
         ReplyMsg(pMsg);
     }
@@ -343,6 +370,9 @@ void amiga_zoom(mandel<MTYPE> *m)
                     DisplayBeep(myScreen);
                     ReportMouse(FALSE, myWindow);
                 }
+                break;
+            case IDCMP_RAWKEY:
+                log_msg("%s: RAWKEY event\n", __FUNCTION__);
                 break;
             }
             ReplyMsg(pMsg);
