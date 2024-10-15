@@ -39,7 +39,7 @@ void log_msg(const char *s, ...)
 #include <vector>
 
 #define PIXELW 2 // 2
-#define MAX_ITER 32 * 2
+#define MAX_ITER iter
 #define IMG_W (320 * 2)      // 320
 #define IMG_H (128 * 2 - 20) // 200
 #define MTYPE double
@@ -53,27 +53,7 @@ void log_msg(const char *s, ...)
 #define MYSTRGADWIDTH (200)
 #define MYSTRGADHEIGHT (8)
 
-WORD strBorderData[] =
-    {
-    0,0, MYSTRGADWIDTH + 3,0, MYSTRGADWIDTH + 3,MYSTRGADHEIGHT + 3,
-    0,MYSTRGADHEIGHT + 3, 0,0,
-    };
-struct Border strBorder =
-    {
-    -2,-2,1,0,JAM1,5,strBorderData,NULL,
-    };
-char strBuffer[BUFSIZE];
-char strUndoBuffer[BUFSIZE];
-struct StringInfo strInfo =
-    {
-    strBuffer,strUndoBuffer,0,BUFSIZE, /* compiler sets remaining fields to zero */
-    };
-struct Gadget strGad =
-    {
-    NULL, 20,20,MYSTRGADWIDTH,MYSTRGADHEIGHT,
-    GFLG_GADGHCOMP, GACT_RELVERIFY | GACT_STRINGCENTER,
-    GTYP_STRGADGET, &strBorder, NULL, NULL,0,&strInfo,0,NULL,
-    };
+int iter = 32 * 2;
 
 // #define NO_LOG
 #ifdef NO_LOG
@@ -130,6 +110,8 @@ std::vector<rec_t> recs = {
 };
 
 #ifdef __amiga__
+#define WINX (IMG_W / 1)
+#define WINY (IMG_H / 1)
 static struct Screen *myScreen;
 static struct Window *myWindow;
 static struct RastPort *rp;
@@ -145,9 +127,19 @@ static struct NewScreen Screen1 = {
     (char *)title,
     NULL,
     NULL};
+static struct NewWindow param_dialog = {
+            0, 0,
+            200, 50,
+            0, 1,
+            IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS | IDCMP_RAWKEY,
+            WFLG_SIZEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET | WFLG_ACTIVATE,
+            NULL, NULL,
+            (char *)"Params",
+            NULL, NULL,
+            0, 0,
+            WINX, WINY,
+            CUSTOMSCREEN};
 
-#define WINX (IMG_W / 1)
-#define WINY (IMG_H / 1)
 /* real boring sprite data */
 UWORD __chip sprite_data_ul[] = {
     0, 0,           /* position control           */
@@ -252,6 +244,7 @@ void setup_screen(void)
         CUSTOMSCREEN};
     myWindow = OpenWindow(&winlayout);
     rp = myWindow->RPort;
+    param_dialog.Screen = myScreen;
 }
 
 int amiga_setpixel(void *not_used, int x, int y, int col)
@@ -297,6 +290,86 @@ int amiga_setpixel(void *not_used, int x, int y, int col)
     }
 out:
     return ret;
+}
+
+int fetch_param(void)
+{
+    struct Window *paramd = OpenWindow(&param_dialog);
+    bool closewin = FALSE;
+    long data;
+    int new_iter = -1, new_data = iter;
+    char buf[32];
+    struct IntuiText reqtext = { 4, 0, JAM1, 0, 0, NULL, (STRPTR) "Depth: ", NULL};
+    struct Requester req;
+    struct StringInfo reqstringinfo = {
+        &buf[0], NULL,
+        0, 6,
+        0, 
+        0, 0, 0, 0, 0,
+        NULL,
+        new_data,
+        NULL};
+    struct Gadget gad = {
+        NULL,
+        0, 0,
+        180, 35,
+        0,
+        GACT_ENDGADGET | GACT_STRINGLEFT | GACT_LONGINT,
+        GTYP_REQGADGET | GTYP_STRGADGET,
+        NULL, NULL,
+        NULL, /* text */
+        0,
+        &reqstringinfo,
+        0,
+        &data};
+
+    sprintf(buf, "%d", MAX_ITER);
+    InitRequester(&req);
+    req.LeftEdge = 10;
+    req.TopEdge = 30;
+    req.Width = 200;
+    req.Height = 40;
+    req.ReqText = &reqtext;
+    req.ReqGadget = &gad;
+    up:     
+    if (!Request(&req, paramd))
+        log_msg("req failed.\n");
+   
+    while (closewin == FALSE) {
+        WaitPort(paramd->UserPort);
+        struct Message *pMsg;
+        while ((pMsg = GetMsg(paramd->UserPort)) != NULL)
+        {
+            struct IntuiMessage *pIMsg = (struct IntuiMessage *)pMsg;
+            //log_msg("%s: class = %ld\n", __FUNCTION__, pIMsg->Class);
+            switch (pIMsg->Class)
+            {
+            case IDCMP_CLOSEWINDOW:
+                closewin = TRUE;
+                break;
+            case IDCMP_RAWKEY:
+                //log_msg("%s: RAWKEY event2: buf = %s\n", __FUNCTION__, buf);
+                new_iter = strtol(buf, NULL, 10);
+                if ((errno != 0) || 
+                    (new_iter < 32) || (new_iter > 1024))
+                {
+                    DisplayBeep(myScreen);
+                    log_msg("%s: iter out of range: %d\n", __FUNCTION__, new_iter);
+                    goto up;
+                }
+                log_msg("%s: iter set to %d, new_data = %d\n", __FUNCTION__, new_iter, new_data);
+                iter = new_iter;
+                closewin = TRUE;
+                break;
+            default:
+                break;
+            }
+            ReplyMsg(pMsg);
+        }
+    }
+    EndRequest(&req, paramd);
+    CloseWindow(paramd);
+    return 0;
 }
 
 void amiga_zoom(mandel<MTYPE> *m)
@@ -352,6 +425,8 @@ void amiga_zoom(mandel<MTYPE> *m)
                 if (pIMsg->Code == SELECTUP)
                 {
                     ReportMouse(FALSE, myWindow);
+                    if (fetch_param() != 0)
+                        break;
                     MoveSprite(NULL, &sprite_ul, -1, 20);
                     MoveSprite(NULL, &sprite_lr, WINX / 2 - 16, WINY + 4);
                     if ((stx == pIMsg->MouseX) ||

@@ -103,7 +103,7 @@ class mandel
 
     tparam_t *tp[NO_THREADS];
     // char *stacks[NO_THREADS];
-    int max_iter = MAX_ITER;
+    int &max_iter = MAX_ITER;
     uint8_t _mask;
 
     /* class local variables */
