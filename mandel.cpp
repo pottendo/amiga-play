@@ -134,7 +134,7 @@ static struct NewWindow param_dialog = {
             IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS | IDCMP_RAWKEY,
             WFLG_SIZEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET | WFLG_ACTIVATE,
             NULL, NULL,
-            (char *)"Params",
+            (char *)"Depth:",
             NULL, NULL,
             0, 0,
             WINX, WINY,
@@ -297,9 +297,9 @@ int fetch_param(void)
     struct Window *paramd = OpenWindow(&param_dialog);
     bool closewin = FALSE;
     long data;
-    int new_iter = -1, new_data = iter;
+    int new_iter = -1;
     char buf[32];
-    struct IntuiText reqtext = { 4, 0, JAM1, 0, 0, NULL, (STRPTR) "Depth: ", NULL};
+    struct IntuiText reqtext = { 1, 0, JAM1, 0, 0, NULL, (STRPTR) "Depth: ", NULL};
     struct Requester req;
     struct StringInfo reqstringinfo = {
         &buf[0], NULL,
@@ -307,7 +307,7 @@ int fetch_param(void)
         0, 
         0, 0, 0, 0, 0,
         NULL,
-        new_data,
+        iter,
         NULL};
     struct Gadget gad = {
         NULL,
@@ -357,7 +357,7 @@ int fetch_param(void)
                     log_msg("%s: iter out of range: %d\n", __FUNCTION__, new_iter);
                     goto up;
                 }
-                log_msg("%s: iter set to %d, new_data = %d\n", __FUNCTION__, new_iter, new_data);
+                log_msg("%s: iter set to %d\n", __FUNCTION__, new_iter);
                 iter = new_iter;
                 closewin = TRUE;
                 break;
