@@ -38,10 +38,11 @@ void log_msg(const char *s, ...)
 #include <math.h>
 #include <vector>
 
-#define PIXELW 2 // 2
+#define PIXELW 1 // 2
+#define HALF 1
 #define MAX_ITER iter
-#define IMG_W (320 * 2)      // 320
-#define IMG_H (128 * 2 - 20) // 200
+#define IMG_W (320 / HALF)      // 320
+#define IMG_H (256 / HALF - 20) // 200
 #define MTYPE double
 
 #define CSIZE (IMG_W * IMG_H) / 8
@@ -49,9 +50,6 @@ void log_msg(const char *s, ...)
 
 // set this to enable direct output on C64 gfx mem.
 // #define C64
-#define BUFSIZE (100)
-#define MYSTRGADWIDTH (200)
-#define MYSTRGADHEIGHT (8)
 
 int iter = 32 * 2;
 
@@ -119,7 +117,7 @@ static struct SimpleSprite sprite_ul = {0};
 static struct SimpleSprite sprite_lr = {0};
 static char title[24] = "Mandelbrot";
 static struct NewScreen Screen1 = {
-    0, 0, 320 * 2, 360, 6, /* Screen of 640 x 480 of depth 8 (2^8 = 256 colours)    */
+    0, 0, IMG_W, IMG_H + 20, 6, /* Screen of 640 x 480 of depth 8 (2^8 = 256 colours)    */
     DETAILPEN, BLOCKPEN,
     EXTRA_HALFBRITE, /* see graphics/view.h for view modes */
     CUSTOMSCREEN,    /* Screen types */
@@ -220,7 +218,7 @@ void sprite_setup(struct Screen *myScreen)
 
     /* install sprite data and move sprite to start position. */
     ChangeSprite(NULL, &sprite_lr, sprite_data_lr);
-    MoveSprite(NULL, &sprite_lr, WINX / 2 - 16, WINY + 4);
+    MoveSprite(NULL, &sprite_lr, WINX - 16, WINY + 4);
 }
 
 void setup_screen(void)
@@ -235,7 +233,7 @@ void setup_screen(void)
         WINX, WINY + 10,
         0, 1,
         IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS | IDCMP_MOUSEMOVE | IDCMP_RAWKEY,
-        WFLG_SIZEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET | WFLG_CLOSEGADGET | WFLG_ACTIVATE,
+        WFLG_DRAGBAR | WFLG_DEPTHGADGET | WFLG_CLOSEGADGET | WFLG_ACTIVATE,
         NULL, NULL,
         (char *)title,
         myScreen, NULL,
@@ -428,7 +426,7 @@ void amiga_zoom(mandel<MTYPE> *m)
                     if (fetch_param() != 0)
                         break;
                     MoveSprite(NULL, &sprite_ul, -1, 20);
-                    MoveSprite(NULL, &sprite_lr, WINX / 2 - 16, WINY + 4);
+                    MoveSprite(NULL, &sprite_lr, WINX - 16, WINY + 4);
                     if ((stx == pIMsg->MouseX) ||
                         (sty == pIMsg->MouseY) ||
                         (sty < 10) ||
