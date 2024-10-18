@@ -245,18 +245,18 @@ class mandel
             for (yk = 0; yk < height; yk++)
             {
                 int d = mandel_calc_point(x, y);
-                P(canvas_sem);
+                //P(canvas_sem);
 #ifdef __amiga__
                 int amiga_setpixel(void *, int x, int y, int col);
                 if (stop || (stop = amiga_setpixel(NULL, xk + xo, yk + yo, d)))
                 {
-                    V(canvas_sem);
+                    //V(canvas_sem);
                     goto out;
                 }
 #else
                 canvas_setpx(canvas, xk + xo, yk + yo, d);
 #endif
-                V(canvas_sem);
+                //V(canvas_sem);
                 y += incy;
             }
             x += incx;

@@ -89,7 +89,7 @@ VOID DrawGels(struct Window *win, struct AnimOb **animKey, SHORT dbufing,
 #define SCRNMODE NULL  /* (HIRES | LACE) for NewScreen, ends up in view.*/
 
 #define RBMWIDTH  320  /* My raster size constants. (These CAN differ) */
-#define RBMHEIGHT 200
+#define RBMHEIGHT 256
 #define RBMDEPTH    4
 
 #if 0
@@ -319,7 +319,6 @@ struct AnimComp *bngComp;
 struct AnimComp *satAComp;
 struct AnimComp *satBComp;
 struct AnimComp *satCComp;
-printf("%s: - 1\n", __FUNCTION__);
 
 if (NULL != (bngOb = AllocMem((LONG)sizeof(struct AnimOb), MEMF_CLEAR)))
 	{
@@ -675,28 +674,28 @@ VOID runAnimation(struct Window *win,
 				  struct AnimOb **animKey,
 				  struct BitMap **myBitMaps)
 {
-struct IntuiMessage  *intuiMsg;
-WORD toggleFrame;
+	struct IntuiMessage *intuiMsg;
+	WORD toggleFrame;
 
-toggleFrame = 0;
+	toggleFrame = 0;
 
-/* everything opened, and allocated, and initialized.
-** Now I just hang out, move the gels, tell the system to redraw them,
-** and let the collision and anim routines bounce them about.
-*/
-for (;;)
+	/* everything opened, and allocated, and initialized.
+	** Now I just hang out, move the gels, tell the system to redraw them,
+	** and let the collision and anim routines bounce them about.
+	*/
+	for (;;)
 	{
-	/* All the work done here */
-	DrawGels(win, animKey, dbufing, &toggleFrame, myBitMaps);
+		/* All the work done here */
+		DrawGels(win, animKey, dbufing, &toggleFrame, myBitMaps);
 
-	while (intuiMsg = (struct IntuiMessage *)GetMsg(win->UserPort))
+		while (intuiMsg = (struct IntuiMessage *)GetMsg(win->UserPort))
 		{
-		if (intuiMsg->Class == CLOSEWINDOW)
+			if (intuiMsg->Class == CLOSEWINDOW)
 			{
-			ReplyMsg((struct Message *)intuiMsg);
-			return;
+				ReplyMsg((struct Message *)intuiMsg);
+				return;
 			}
-		ReplyMsg((struct Message *)intuiMsg);
+			ReplyMsg((struct Message *)intuiMsg);
 		}
 	}
 }
@@ -874,31 +873,27 @@ VOID DrawGels(struct Window *win,
 			  WORD *toggleFrame,
 			  struct BitMap **myBitMaps)
 {
-printf("%s: 1\n", __FUNCTION__); sleep(3);
-Animate(animKey, &win->WScreen->RastPort);
-printf("%s: 2\n", __FUNCTION__); sleep(3);
+	Animate(animKey, &win->WScreen->RastPort);
+	SortGList(&win->WScreen->RastPort);	  /* Put the list in order. */
+	DoCollision(&win->WScreen->RastPort); /* Collision routines may called now */
+	SortGList(&win->WScreen->RastPort);	  /* Put the list in order. */
 
-SortGList(&win->WScreen->RastPort);   /* Put the list in order. */
-printf("%s: 3\n", __FUNCTION__); sleep(3);
-DoCollision(&win->WScreen->RastPort); /* Collision routines may called now */
-SortGList(&win->WScreen->RastPort);	  /* Put the list in order. */
+	if (dbufing)
+		win->WScreen->ViewPort.RasInfo->BitMap = myBitMaps[*toggleFrame];
+	/* Draw 'em. */
+	DrawGList(&win->WScreen->RastPort, &win->WScreen->ViewPort);
 
-if (dbufing)
-	win->WScreen->ViewPort.RasInfo->BitMap = myBitMaps[*toggleFrame];
-/* Draw 'em. */
-DrawGList(&win->WScreen->RastPort, &win->WScreen->ViewPort);
-
-if (dbufing)
+	if (dbufing)
 	{
-	MakeScreen(win->WScreen);	/* Tell intuition to do it's stuff. */
-	RethinkDisplay();			/* Does a MrgCop & LoadView. */
+		MakeScreen(win->WScreen); /* Tell intuition to do it's stuff. */
+		RethinkDisplay();		  /* Does a MrgCop & LoadView. */
 
-	*toggleFrame ^= 1;
-	/* Flip to the next BitMap. */
-	win->WScreen->RastPort.BitMap = myBitMaps[*toggleFrame];
+		*toggleFrame ^= 1;
+		/* Flip to the next BitMap. */
+		win->WScreen->RastPort.BitMap = myBitMaps[*toggleFrame];
 	}
-else
-	WaitTOF();
+	else
+		WaitTOF();
 }
 
 #if 0
@@ -983,22 +978,100 @@ exit(return_code);
 
 #endif
 
-void run_animation(struct Window *win)
-{
-	struct AnimOb	 *animKey;
-	struct AnimOb *boingOb;
 
-	printf("%s: animation initalization\n", __FUNCTION__);
+/*--------------------------------------------------------------
+**
+*/
+struct GelsInfo *run_setupDisplay(struct Window *win,
+								  SHORT dbufing,
+								  struct BitMap **myBitMaps)
+{
+	struct GelsInfo *gInfo;
+	struct Screen *screen;
+	struct ViewPort *vport;
+	struct RastPort *rport;
+
+	if (dbufing)
+	{
+		/* Screen type. We alloc two BitMaps. See DBLBUF comments. */
+		//ns.Type |= CUSTOMBITMAP;
+		//ns.CustomBitMap = myBitMaps[0];
+	}
+
+	{
+		vport = &win->WScreen->ViewPort;
+		rport = &win->WScreen->RastPort;
+
+//		SetRGB4(vport, 0x0, 0x0, 0x0, 0x0); /* Black */
+//		SetRGB4(vport, 0x1, 0x0, 0x6, 0x0); /* dk green */
+//		SetRGB4(vport, 0x2, 0x0, 0x9, 0x0); /* med green */
+//		SetRGB4(vport, 0x3, 0x0, 0xC, 0x0); /* lt green */
+//		SetRGB4(vport, 0x4, 0x1, 0x1, 0x7); /* dk blue */
+//		SetRGB4(vport, 0x5, 0x7, 0x0, 0x8); /* dk violet */
+		SetRGB4(vport, 0x6, 0x6, 0x6, 0x6); /* dk grey */
+		SetRGB4(vport, 0x7, 0x7, 0x1, 0x0); /* dk red */
+//		SetRGB4(vport, 0x8, 0x3, 0x3, 0xB); /* med blue */
+//		SetRGB4(vport, 0x9, 0xB, 0x0, 0xC); /* med violet */
+		SetRGB4(vport, 0xA, 0x9, 0x9, 0x9); /* med grey */
+		SetRGB4(vport, 0xB, 0xB, 0x0, 0x0); /* med red */
+//		SetRGB4(vport, 0xC, 0x5, 0x5, 0xF); /* lt blue */
+//		SetRGB4(vport, 0xD, 0xE, 0x0, 0xF); /* lt violet */
+		SetRGB4(vport, 0xE, 0xF, 0xF, 0xF); /* lt grey (white) */
+		SetRGB4(vport, 0xF, 0xF, 0x0, 0x0); /* lt red */
+#if 0
+		/* put some stuff in the background, so we can
+		** see that it does not get destroyed.
+		*/
+		SetAPen(rport, 0xA);
+		SetDrMd(rport, JAM1);
+		Move(rport, 70, 105);
+		Text(rport, "Animation Example...", 20);
+#endif
+
+		// nw.Screen = screen;
+		if (dbufing)
+		{
+			win->WScreen->RastPort.Flags = DBUFFER;
+
+			/* copy the rast port data into the alternate rast port */
+			win->WScreen->RastPort.BitMap = myBitMaps[1];
+			BltBitMapRastPort(myBitMaps[0], 0, 0, &win->WScreen->RastPort,
+							  0, 0, RBMWIDTH, RBMHEIGHT, 0xC0);
+			win->WScreen->RastPort.BitMap = myBitMaps[0];
+		}
+
+		/* set up the gels system.
+		** 0xFC says: when you allocate sprites for me, don't ever use
+		** sprites zero or one. This guarantees that sprite zero, the
+		** intuition pointer, stays intact. Remember sprite one shares
+		** colors with sprite zero.
+		*/
+		if (NULL != (gInfo = setupGelSys(&win->WScreen->RastPort, 0xFC)))
+			return (gInfo);
+	}
+	return_code = RETURN_WARN;
+	return (NULL);
+}
+
+struct AnimOb *animKey;
+struct Window *cached_win;
+void run_setupAnimation(struct Window *win)
+{
+	struct AnimOb *boingOb;
+	cached_win = win;
 	InitAnimate(&animKey);
-	printf("%s: InitAnimate passed\n", __FUNCTION__);
 	if (NULL != (boingOb = setupBoing(0)))
 	{
-		printf("%s: setup passed\n", __FUNCTION__);
 		AddAnimOb(boingOb, &animKey, &win->WScreen->RastPort);
-		printf("%s: AddAnim,\n", __FUNCTION__);
-		runAnimation(win, 0, &animKey, NULL);
+//		runAnimation(win, 0, &animKey, NULL);
 	}
 	else
 		printf("%s: setupBoing() failed\n", __FUNCTION__);
+}
+
+void run_stepAnimation(void) 
+{
+	WORD toggleFrame = 0;	
+	DrawGels(cached_win, &animKey, 0, &toggleFrame, NULL);
 }
 

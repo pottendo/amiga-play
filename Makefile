@@ -65,7 +65,7 @@ anim: anim.o animtools.o
 mandel.o: mandel.cpp mandelbrot.h
 	$(CPLUSPLUS) $(CPPFLAGS) -c $< -o $@ -DPTHREADS 
 
-mandel: mandel.o posix-clockfnpp.o #anim.o animtools.o
+mandel: mandel.o posix-clockfnpp.o anim.o animtools.o
 	$(CPLUSPLUS) $(LDFLAGS) -o $@ $^ -lpthread
 	$(STRIP) $@
 

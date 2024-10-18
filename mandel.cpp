@@ -9,6 +9,15 @@
 #include <exec/memory.h>
 #include <devices/inputevent.h>
 #include <clib/console_protos.h>
+extern "C"
+{
+    void run_setupAnimation(struct Window *w);
+    void run_stepAnimation(void);
+    struct GelsInfo *run_setupDisplay(struct Window *win,
+                                      SHORT dbufing,
+                                      struct BitMap **myBitMaps);
+}
+
 #define CLOCK_GETTIME
 #else
 #define CLOCK_GETTIME
@@ -18,18 +27,20 @@
 #include <stdio.h>
 #include <time.h>
 #include <pthread.h>
-#define NO_THREADS 16 // max 16 for Orangecart!
+#define NO_THREADS 4 // max 16 for Orangecart!
 pthread_mutex_t logmutex;
+pthread_mutex_t anim_ctrl;
+
 void log_msg(const char *s, ...)
 {
     char t[256];
     va_list args;
 
-    //    pthread_mutex_lock(&logmutex);
+    pthread_mutex_lock(&logmutex);
     va_start(args, s);
     vsnprintf(t, 256, s, args);
     printf(t);
-    //    pthread_mutex_unlock(&logmutex);
+    pthread_mutex_unlock(&logmutex);
 }
 #else
 // #define sleep(...)
@@ -41,12 +52,15 @@ void log_msg(const char *s, ...)
 #include <math.h>
 #include <vector>
 
-#define SCRDEPTH 2  // or 6 for 64cols lesser resolution
+#define SCRDEPTH 4  // or 6 for 64cols lesser resolution
 
 #if (SCRDEPTH <= 4)
-#define HALF 1
-#define SCRMODE (HIRES|LACE)
-#define SCMOUSE 2
+//#define HALF 1
+#define HALF 2
+//#define SCRMODE (HIRES|LACE)
+#define SCRMODE EXTRA_HALFBRITE
+//#define SCMOUSE 2
+#define SCMOUSE 1
 #else
 #define HALF 2
 #define SCRMODE EXTRA_HALFBRITE
@@ -132,6 +146,7 @@ static struct RastPort *rp;
 static struct SimpleSprite sprite_ul = {0};
 static struct SimpleSprite sprite_lr = {0};
 static char title[24] = "Mandelbrot";
+static bool animation = true;
 #if 1
 static struct NewScreen Screen1 = {
     0, 0, IMG_W, IMG_H + 20, SCRDEPTH, /* Screen of 640 x 480 of depth 8 (2^8 = 256 colours)    */
@@ -262,7 +277,21 @@ void sprite_setup(struct Screen *myScreen)
     MoveSprite(NULL, &sprite_lr, WINX / SCMOUSE - 16, WINY / SCMOUSE + 4);
 }
 
-extern "C" void run_animation(struct Window *w);
+void *anim_thread(void *arg)
+{
+    log_msg("%s: starting animation thread...\n", __FUNCTION__);
+    Delay(20);
+    while(animation)
+    {
+        pthread_mutex_lock(&anim_ctrl);
+        run_stepAnimation();
+        pthread_mutex_unlock(&anim_ctrl);
+        Delay(2);
+    }
+    pthread_mutex_unlock(&anim_ctrl);
+    log_msg("%s: terminating animation thread.\n", __FUNCTION__);
+    return NULL;
+}
 
 void setup_screen(void)
 {
@@ -291,7 +320,18 @@ void setup_screen(void)
     if (0 == OpenDevice("console.device",-1,(struct IORequest *)&ioreq,0)) {
         ConsoleDevice = (struct Library *)ioreq.io_Device;  
     }
-    //run_animation(myWindow);
+    run_setupDisplay(myWindow, 0, NULL);
+    run_setupAnimation(myWindow);
+#ifdef PTHREADS    
+    pthread_t ath;
+    static pthread_attr_t pattr;
+    static char *anim_stack[4096];
+    pthread_attr_init(&pattr);
+    pthread_attr_setstack(&pattr, anim_stack, 4096);
+    if (pthread_create(&ath, &pattr, anim_thread, NULL) != 0)
+        log_msg("%s: couldn't start animation thread\n", __FUNCTION__);
+    pthread_detach(ath);
+#endif    
 }
 
 /* Convert RAWKEYs into VANILLAKEYs, also shows special keys like HELP, Cursor Keys,
@@ -347,14 +387,15 @@ char fetch_key(struct IntuiMessage *pIMsg, struct Window *win)
 int amiga_setpixel(void *not_used, int x, int y, int col)
 {
     //    log_msg("%s: %dx%d->%d\n", __FUNCTION__, x, y, col);
-    //pthread_mutex_lock(&logmutex);
+    pthread_mutex_lock(&logmutex);
     SetAPen(rp, col);
     WritePixel(rp, x, y + 10);
     //    Move(rp, x, y+10);
     //    Draw(rp, WINX, y + 10);
-    //pthread_mutex_unlock(&logmutex);
+    pthread_mutex_unlock(&logmutex);
     struct Message *pMsg;
     int ret = 0;
+
     if ((pMsg = GetMsg(myWindow->UserPort)) != NULL)
     {
         struct IntuiMessage *pIMsg = (struct IntuiMessage *)pMsg;
@@ -545,8 +586,11 @@ void amiga_zoom(mandel<MTYPE> *m)
     bool closewin = FALSE;
     while (closewin == FALSE)
     {
+#ifndef PTHREAD
+        run_stepAnimation();
+#else
         WaitPort(myWindow->UserPort);
-
+#endif
         struct Message *pMsg;
         while ((pMsg = GetMsg(myWindow->UserPort)) != NULL)
         {
@@ -636,6 +680,11 @@ void amiga_zoom(mandel<MTYPE> *m)
             }
         }
     }
+
+    pthread_mutex_lock(&anim_ctrl);
+    animation = false;
+    Delay(5);
+    pthread_mutex_lock(&anim_ctrl);
     CloseWindow(myWindow);
     if (myScreen)
         CloseScreen(myScreen); /* Close screen using myScreen pointer */
@@ -648,6 +697,7 @@ void amiga_zoom(mandel<MTYPE> *m)
 int main(void)
 {
     pthread_mutex_init(&logmutex, NULL);
+    pthread_mutex_init(&anim_ctrl, NULL);
     log_msg("Welcome mandelbrot...\n");
 #ifndef CONFIG_BOARD_ORANGECART
     // stacks = (char *) alloca(STACK_SIZE * NO_THREADS); //new char[STACK_SIZE * NO_THREADS]();
