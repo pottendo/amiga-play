@@ -3,13 +3,14 @@ CC = $(PREFIX)/m68k-amigaos-gcc
 CPLUSPLUS = $(PREFIX)/m68k-amigaos-g++
 STRIP = $(PREFIX)/m68k-amigaos-strip
 XDFTOOL = xdftool
-DISKNAME = hack.adf
+FSUAEBASE=$(shell echo ${HOME})/Documents/FS-UAE
+DISKNAME = playfd.adf
 HDISKNAME = playhd.hdf
 CFLAGS = -g -Wall $(OPTIMIZE) $(KICK)
 CPPFLAGS = -g -Wall $(OPTIMIZE) $(KICK)
 OPTIMIZE = -O3
 LDFLAGS = $(KICK) -N
-CPROGRAMS = hello-world hello-pthread time-test scratch #bobs-sprites
+CPROGRAMS = hello-world hello-pthread time-test scratch #anim #bobs-sprites
 CPPPROGRAMS = mandel mandel13 #hello-cpp 
 PROGRAMS = $(CPROGRAMS) $(CPPPROGRAMS)
 COBJECTS = $(addsuffix .o,$(CPROGRAMS))
@@ -26,29 +27,26 @@ endif
 all: $(DISKNAME) $(HDISKNAME)
 
 disk: 
-	$(XDFTOOL) $(D) format "play"
+	$(XDFTOOL) $(D) format "$(VN)"
 	$(XDFTOOL) $(D) boot install boot1x
+	$(XDFTOOL) $(D) write libs
 	$(XDFTOOL) $(D) makedir s
 	$(XDFTOOL) $(D) write Startup-Sequence s
-	$(XDFTOOL) $(D) write libs
-	$(XDFTOOL) $(D) delete s/Startup-Sequence
-	$(XDFTOOL) $(D) write Startup-Sequence s
-	$(XDFTOOL) $(D) delete pottendo all || exit 0
-	$(XDFTOOL) $(D) makedir pottendo
 	$(XDFTOOL) $(D) write c
+	$(XDFTOOL) $(D) makedir pottendo
 	for f in $(PROGRAMS) ; do \
-		$(XDFTOOL) $(D) write $$f pottendo ; /bin/true ;\
+		$(XDFTOOL) $(D) write $$f pottendo ;\
 	done
 
 $(DISKNAME): $(PROGRAMS) Startup-Sequence
 	rm -f $(DISKNAME)
 	$(XDFTOOL) $(DISKNAME) create
-	make disk D=$@
+	make disk D=$@ VN=$(shell basename $@ .adf)
 
 $(HDISKNAME): $(PROGRAMS) Startup-Sequence
 	rm -f $(HDISKNAME)
 	$(XDFTOOL) $(HDISKNAME) create size=10Mi
-	make disk D=$@
+	make disk D=$@ VN=$(shell basename $@ .hdf)
 
 #$(CPROGRAMS): $(COBJECTS)
 hello-world: hello-world.o posix-clockfn.o
@@ -60,14 +58,14 @@ hello-pthread: hello-pthread.o
 gui-hack: gui-hack.o mandellib.o
 	$(CC) $(LDFLAGS) -o $@ $^ -lm
 	$(STRIP) $@
-bobs-sprites: bobs-sprites.o
+anim: anim.o animtools.o
 	$(CC) $(LDFLAGS) -o $@ $^ -lm
 	$(STRIP) $@
 
 mandel.o: mandel.cpp mandelbrot.h
-	$(CPLUSPLUS) $(CPPFLAGS) -DPTHREADS -c $< -o $@
+	$(CPLUSPLUS) $(CPPFLAGS) -c $< -o $@ -DPTHREADS 
 
-mandel: mandel.o posix-clockfnpp.o
+mandel: mandel.o posix-clockfnpp.o #anim.o animtools.o
 	$(CPLUSPLUS) $(LDFLAGS) -o $@ $^ -lpthread
 	$(STRIP) $@
 
@@ -87,6 +85,8 @@ hello-cpp: hello-cpp.o
 
 clean:
 	rm -f $(DISKNAME) $(HDISKNAME) $(PROGRAMS) *.o
+	rm -f "$(FSUAEBASE)/Save States/a500hdkick13/`basename $(DISKNAME) .adf`.sdf" "$(FSUAEBASE)/Save States/a500hdkick13/`basename $(HDISKNAME) .hdf`.sdf" 
+	rm -f "$(FSUAEBASE)/Save States/a500+hdkick3.2.1/`basename $(DISKNAME) .adf`.sdf" "$(FSUAEBASE)/Save States/a500+hdkick3.2.1/`basename $(HDISKNAME) .hdf`.sdf"
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c  $<

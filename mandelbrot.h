@@ -308,15 +308,11 @@ class mandel
         return 0;
     }
 
+
     void mandel_setup(const int thread_no, myDOUBLE sx, myDOUBLE sy, myDOUBLE tx, myDOUBLE ty)
     {
         int t = 0;
-        last_xr = (tx - sx);
-        last_yr = (ty - sy);
-        ssw = last_xr / xres;
-        ssh = last_yr / yres;
-        transx = sx;
-        transy = sy;
+        mandel_presetup(sx, sy, tx, ty);
         myDOUBLE stepx = (xres / thread_no) * ssw * xratio;
         myDOUBLE stepy = (yres / thread_no) * ssh;
         pthread_t th = (pthread_t)0;
@@ -494,6 +490,15 @@ public:
         mark_y2 = mark_y1;
     }
 
+    void mandel_presetup(myDOUBLE sx, myDOUBLE sy, myDOUBLE tx, myDOUBLE ty)
+    {
+        last_xr = (tx - sx);
+        last_yr = (ty - sy);
+        ssw = last_xr / xres;
+        ssh = last_yr / yres;
+        transx = sx;
+        transy = sy;
+    }
 #if 0
     void select_update(point_t &p)
     {

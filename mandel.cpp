@@ -6,6 +6,9 @@
 #include <proto/intuition.h>
 #include <proto/graphics.h>
 #include <graphics/sprite.h>
+#include <exec/memory.h>
+#include <devices/inputevent.h>
+#include <clib/console_protos.h>
 #define CLOCK_GETTIME
 #else
 #define CLOCK_GETTIME
@@ -67,6 +70,7 @@ static char cv[CSIZE] = {};
 
 #ifdef PTHREAD_STACK_MIN
 #define STACK_SIZE PTHREAD_STACK_MIN
+//#define STACK_SIZE 1024
 #else
 #define STACK_SIZE 1024
 #endif
@@ -110,6 +114,8 @@ std::vector<rec_t> recs = {
 #ifdef __amiga__
 #define WINX (IMG_W / 1)
 #define WINY (IMG_H / 1)
+struct Library *ConsoleDevice;
+struct IOStdReq ioreq;
 static struct Screen *myScreen;
 static struct Window *myWindow;
 static struct RastPort *rp;
@@ -126,17 +132,30 @@ static struct NewScreen Screen1 = {
     NULL,
     NULL};
 static struct NewWindow param_dialog = {
-            0, 0,
-            200, 50,
-            0, 1,
-            IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS | IDCMP_RAWKEY,
-            WFLG_SIZEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET | WFLG_ACTIVATE,
-            NULL, NULL,
-            (char *)"Depth:",
-            NULL, NULL,
-            0, 0,
-            WINX, WINY,
-            CUSTOMSCREEN};
+    0, 0,
+    200, 50,
+    0, 1,
+    IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS | IDCMP_RAWKEY,
+    WFLG_SIZEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET | WFLG_ACTIVATE,
+    NULL, NULL,
+    (char *)"Depth:",
+    NULL, NULL,
+    0, 0,
+    WINX, WINY,
+    CUSTOMSCREEN};
+
+static struct NewWindow menu_window = {
+    WINX-200-1, 10,
+    200, 150,
+    0, 1,
+    IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS | IDCMP_RAWKEY,
+    WFLG_SIZEGADGET | WFLG_DRAGBAR | WFLG_ACTIVATE | WFLG_CLOSEGADGET,
+    NULL, NULL,
+    (char *)"Menu:",
+    NULL, NULL,
+    0, 0,
+    WINX, WINY,
+    CUSTOMSCREEN};
 
 /* real boring sprite data */
 UWORD __chip sprite_data_ul[] = {
@@ -221,13 +240,18 @@ void sprite_setup(struct Screen *myScreen)
     MoveSprite(NULL, &sprite_lr, WINX - 16, WINY + 4);
 }
 
+extern "C" void run_animation(struct Window *w);
+
 void setup_screen(void)
 {
+    //log_msg("%s: 0\n", __FUNCTION__);
     myScreen = OpenScreen(&Screen1); /* & (ampersand) means address of */
+    //log_msg("%s: 1\n", __FUNCTION__);
     ScreenToFront(myScreen);
     ShowTitle(myScreen, TRUE);
     MakeScreen(myScreen);
     sprite_setup(myScreen);
+    //log_msg("%s: 2\n", __FUNCTION__);
     struct NewWindow winlayout = {
         0 * WINX / 4, 0 * WINY / 4 + 10,
         WINX, WINY + 10,
@@ -240,9 +264,65 @@ void setup_screen(void)
         0, 0,
         WINX, WINY,
         CUSTOMSCREEN};
+    //log_msg("%s: 3\n", __FUNCTION__);
     myWindow = OpenWindow(&winlayout);
     rp = myWindow->RPort;
     param_dialog.Screen = myScreen;
+    menu_window.Screen = myScreen;
+
+    if (0 == OpenDevice("console.device",-1,(struct IORequest *)&ioreq,0)) {
+        ConsoleDevice = (struct Library *)ioreq.io_Device;  
+    }
+}
+
+/* Convert RAWKEYs into VANILLAKEYs, also shows special keys like HELP, Cursor Keys,
+** FKeys, etc.  It returns:
+**   -2 if not a RAWKEY event.
+**   -1 if not enough room in the buffer, try again with a bigger buffer.
+**   otherwise, returns the number of characters placed in the buffer.
+*/
+LONG deadKeyConvert(struct IntuiMessage *msg, UBYTE *kbuffer,
+                    LONG kbsize, struct KeyMap *kmap, struct InputEvent *ievent)
+{
+    if (msg->Class != IDCMP_RAWKEY)
+        return (-2);
+    ievent->ie_Class = IECLASS_RAWKEY;
+    ievent->ie_Code = msg->Code;
+    ievent->ie_Qualifier = msg->Qualifier;
+    ievent->ie_position.ie_addr = *((APTR *)msg->IAddress);
+
+    return (RawKeyConvert(ievent, (STRPTR)kbuffer, kbsize, kmap));
+}
+
+char fetch_key(struct IntuiMessage *pIMsg, struct Window *win)
+{
+    struct InputEvent *ievent;
+    struct IntuiMessage *m;
+    UBYTE buffer[8];
+    char ret = '\0';
+
+    ievent = (struct InputEvent *)AllocMem(sizeof(struct InputEvent), MEMF_CLEAR);
+    if (ievent)
+    {
+        if (!(pIMsg->Code & 0x80))
+        {
+            deadKeyConvert(pIMsg, buffer, 7, NULL, ievent);
+            ret = buffer[0];
+            while (1) // wait for up-key event
+            {
+                WaitPort(win->UserPort);
+                if ((m = (struct IntuiMessage *)GetMsg(win->UserPort)) != NULL)
+                {
+                    ReplyMsg((struct Message *) m);
+                    if ((m->Class == IDCMP_RAWKEY) &&
+                        (m->Code & 0x80))
+                    break;
+                }
+            }
+        }
+        FreeMem(ievent, sizeof(struct InputEvent));
+    }
+    return ret;
 }
 
 int amiga_setpixel(void *not_used, int x, int y, int col)
@@ -259,32 +339,34 @@ int amiga_setpixel(void *not_used, int x, int y, int col)
     if ((pMsg = GetMsg(myWindow->UserPort)) != NULL)
     {
         struct IntuiMessage *pIMsg = (struct IntuiMessage *)pMsg;
+        ReplyMsg(pMsg);
         switch (pIMsg->Class)
         {
         case IDCMP_MOUSEBUTTONS:
+        case IDCMP_RAWKEY:
             ret = 1;
-            ReplyMsg(pMsg);
             while (1) // loop until button up is seen
             {
                 pMsg = GetMsg(myWindow->UserPort);
                 if (pMsg)
                 {
+                    ReplyMsg(pMsg);
+
                     pIMsg = (struct IntuiMessage *)pMsg;
                     if (pIMsg->Code == SELECTUP)
                         goto out;
-                    ReplyMsg(pMsg);
+                    if (pIMsg->Code & 0x80)
+                        goto out;
                 }
             }
-            goto out;
             break;
         case IDCMP_CLOSEWINDOW:
             ret = 1;
             break;
         default:
-            log_msg("%s: class = %ld\n", __FUNCTION__, pIMsg->Class);
+            //log_msg("%s: class = %ld\n", __FUNCTION__, pIMsg->Class);
             break;
         }
-        ReplyMsg(pMsg);
     }
 out:
     return ret;
@@ -297,6 +379,7 @@ int fetch_param(void)
     long data;
     int new_iter = -1;
     char buf[32];
+    memset(buf, 0, 32);
     struct IntuiText reqtext = { 1, 0, JAM1, 0, 0, NULL, (STRPTR) "Depth: ", NULL};
     struct Requester req;
     struct StringInfo reqstringinfo = {
@@ -347,17 +430,20 @@ int fetch_param(void)
                 break;
             case IDCMP_RAWKEY:
                 //log_msg("%s: RAWKEY event2: buf = %s\n", __FUNCTION__, buf);
-                new_iter = strtol(buf, NULL, 10);
-                if ((errno != 0) || 
-                    (new_iter < 32) || (new_iter > 1024))
+                if (pIMsg->Code & 0x80) // only when key-up is seen.
                 {
-                    DisplayBeep(myScreen);
-                    log_msg("%s: iter out of range: %d\n", __FUNCTION__, new_iter);
-                    goto up;
+                    new_iter = strtol(buf, NULL, 10);
+                    if ((errno != 0) ||
+                        (new_iter < 32) || (new_iter > 1024))
+                    {
+                        DisplayBeep(myScreen);
+                        log_msg("%s: iter out of range: %d\n", __FUNCTION__, new_iter);
+                        goto up;
+                    }
+                    log_msg("%s: iter set to %d\n", __FUNCTION__, new_iter);
+                    iter = new_iter;
+                    closewin = TRUE;
                 }
-                log_msg("%s: iter set to %d\n", __FUNCTION__, new_iter);
-                iter = new_iter;
-                closewin = TRUE;
                 break;
             default:
                 break;
@@ -368,6 +454,70 @@ int fetch_param(void)
     EndRequest(&req, paramd);
     CloseWindow(paramd);
     return 0;
+}
+
+
+int show_menu(void)
+{
+    struct Window *menu = OpenWindow(&menu_window);
+    bool closewin = FALSE;
+    int ret = 1;
+    struct IntuiText t = {
+        1, 0, JAM1, 5, 5, NULL, 
+        NULL, NULL};
+    std::vector<STRPTR> menu_str = {(STRPTR)"i...Iteration", (STRPTR)"r...Recalc", (STRPTR)"s...Restart", (STRPTR)"q...Quit"};
+    int j = 0;
+    for (auto i : menu_str) {
+        t.IText = i;
+        PrintIText(menu->RPort, &t, 1, 15 + j);
+        j += 12;
+    }
+
+    while (closewin == FALSE)
+    {
+        WaitPort(menu->UserPort);
+        struct Message *pMsg;
+        while ((pMsg = GetMsg(menu->UserPort)) != NULL)
+        {
+            struct IntuiMessage *pIMsg = (struct IntuiMessage *)pMsg;
+            // log_msg("%s: class = %ld\n", __FUNCTION__, pIMsg->Class);
+            ReplyMsg(pMsg);
+            switch (pIMsg->Class)
+            {
+            case IDCMP_CLOSEWINDOW:
+                closewin = TRUE;
+                break;
+            case IDCMP_RAWKEY:
+                if (!(pIMsg->Code & 0x80))
+                {
+                    switch (fetch_key(pIMsg, menu))
+                    {
+                    case 'q':
+                        ret = 0;
+                        closewin = TRUE;
+                        break;
+                    case 'i':
+                        fetch_param();
+                        closewin = FALSE; // keep menu to decide
+                        break;
+                    case 'r':
+                        ret = 2;
+                        closewin = TRUE;
+                        break;
+                    case 's':
+                        ret = 3;
+                    default:
+                        closewin = TRUE;
+                        break;
+                    }
+                }
+            default:
+                break;
+            }
+        }
+    }
+    CloseWindow(menu);
+    return ret;
 }
 
 void amiga_zoom(mandel<MTYPE> *m)
@@ -382,7 +532,7 @@ void amiga_zoom(mandel<MTYPE> *m)
         while ((pMsg = GetMsg(myWindow->UserPort)) != NULL)
         {
             struct IntuiMessage *pIMsg = (struct IntuiMessage *)pMsg;
-
+            ReplyMsg(pMsg);
             switch (pIMsg->Class)
             {
             case IDCMP_CLOSEWINDOW:
@@ -423,8 +573,6 @@ void amiga_zoom(mandel<MTYPE> *m)
                 if (pIMsg->Code == SELECTUP)
                 {
                     ReportMouse(FALSE, myWindow);
-                    if (fetch_param() != 0)
-                        break;
                     MoveSprite(NULL, &sprite_ul, -1, 20);
                     MoveSprite(NULL, &sprite_lr, WINX - 16, WINY + 4);
                     if ((stx == pIMsg->MouseX) ||
@@ -445,10 +593,28 @@ void amiga_zoom(mandel<MTYPE> *m)
                 }
                 break;
             case IDCMP_RAWKEY:
-                log_msg("%s: RAWKEY event\n", __FUNCTION__);
+                if (!(pIMsg->Code & 0x80))
+                {
+                    switch (show_menu())
+                    {
+                    case 0:
+                        closewin = TRUE;
+                        break;
+                    case 3:
+                        m->mandel_presetup(-1.5, -1.0, 0.5, 1.0);
+                    case 2:
+                    {
+                        point_t lu{0, 0}, rd{WINX, WINY};
+                        m->select_start(lu);
+                        m->select_end(rd);
+                        DisplayBeep(myScreen);
+                        ReportMouse(FALSE, myWindow);
+                    }
+                    break;
+                    }
+                }
                 break;
             }
-            ReplyMsg(pMsg);
         }
     }
     CloseWindow(myWindow);
