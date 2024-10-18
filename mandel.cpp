@@ -586,7 +586,7 @@ void amiga_zoom(mandel<MTYPE> *m)
     bool closewin = FALSE;
     while (closewin == FALSE)
     {
-#ifndef PTHREAD
+#ifndef PTHREADS
         run_stepAnimation();
 #else
         WaitPort(myWindow->UserPort);
