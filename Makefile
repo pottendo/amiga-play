@@ -72,7 +72,7 @@ mandel: mandel.o posix-clockfnpp.o #anim.o animtools.o
 mandel13.o: mandel.cpp mandelbrot.h
 	$(CPLUSPLUS) -g -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
 
-mandel13: mandel13.o posix-clockfnpp.o
+mandel13: mandel13.o posix-clockfnpp.o anim.o animtools.o
 	$(CPLUSPLUS) -N -mcrt=nix13 -o $@ $^ -lpthread
 	$(STRIP) $@
 

@@ -26,7 +26,7 @@
 ** lc -b1 -cfist -v -y anim.c
 ** blink FROM LIB:c.o anim.o /animtools/animtools.o LIB LIB:lc.lib TO anim
 */
-#define chip /* __chip*/
+#define chip __chip
 #define RETURN_WARN NULL
 #define RETURN_OK 0
 #define RETURN_FAIL 0
@@ -92,6 +92,7 @@ VOID DrawGels(struct Window *win, struct AnimOb **animKey, SHORT dbufing,
 #define RBMHEIGHT 200
 #define RBMDEPTH    4
 
+#if 0
 /*--------------------------------------------------------------*/
 /*                                                              */
 /*--------------------------------------------------------------*/
@@ -111,6 +112,7 @@ struct NewWindow nw =
 
 struct IntuitionBase *IntuitionBase	= NULL;
 struct GfxBase		 *GfxBase		= NULL;
+#endif 
 
 int return_code;
 
@@ -782,6 +784,7 @@ FreeMem(myBitMaps[0], (LONG)sizeof(struct BitMap));
 FreeMem(myBitMaps[1], (LONG)sizeof(struct BitMap));
 }
 
+#if 0
 /*--------------------------------------------------------------
 **
 */
@@ -861,7 +864,7 @@ if ((screen = (struct Screen *)OpenScreen(&ns)) != NULL)
 return_code = RETURN_WARN;
 return(NULL);
 }
-
+#endif
 /*--------------------------------------------------------------
 ** DrawGels part of loop.
 */
@@ -871,15 +874,17 @@ VOID DrawGels(struct Window *win,
 			  WORD *toggleFrame,
 			  struct BitMap **myBitMaps)
 {
+printf("%s: 1\n", __FUNCTION__); sleep(3);
 Animate(animKey, &win->WScreen->RastPort);
+printf("%s: 2\n", __FUNCTION__); sleep(3);
 
 SortGList(&win->WScreen->RastPort);   /* Put the list in order. */
+printf("%s: 3\n", __FUNCTION__); sleep(3);
 DoCollision(&win->WScreen->RastPort); /* Collision routines may called now */
 SortGList(&win->WScreen->RastPort);	  /* Put the list in order. */
 
 if (dbufing)
 	win->WScreen->ViewPort.RasInfo->BitMap = myBitMaps[*toggleFrame];
-
 /* Draw 'em. */
 DrawGList(&win->WScreen->RastPort, &win->WScreen->ViewPort);
 
@@ -896,6 +901,7 @@ else
 	WaitTOF();
 }
 
+#if 0
 /*--------------------------------------------------------------
 **
 */
@@ -975,6 +981,8 @@ else
 exit(return_code);
 }
 
+#endif
+
 void run_animation(struct Window *win)
 {
 	struct AnimOb	 *animKey;
@@ -987,6 +995,10 @@ void run_animation(struct Window *win)
 	{
 		printf("%s: setup passed\n", __FUNCTION__);
 		AddAnimOb(boingOb, &animKey, &win->WScreen->RastPort);
-		// runAnimation(win, 0, &animKey, NULL);
+		printf("%s: AddAnim,\n", __FUNCTION__);
+		runAnimation(win, 0, &animKey, NULL);
 	}
+	else
+		printf("%s: setupBoing() failed\n", __FUNCTION__);
 }
+

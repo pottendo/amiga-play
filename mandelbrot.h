@@ -116,7 +116,7 @@ class mandel
     canvas_t canvas;
     char *stacks;
     uint16_t xres, yres;
-    color_t col_pal[PAL_SIZE] = {0, 1, 2, 3};
+    color_t col_pal[PAL_SIZE];// = {0, 1, 2, 3};
     coord_t mark_x1, mark_y1, mark_x2, mark_y2;
     myDOUBLE last_xr, last_yr, ssw, ssh, transx, transy, xratio;
     int stop;

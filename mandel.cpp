@@ -41,15 +41,25 @@ void log_msg(const char *s, ...)
 #include <math.h>
 #include <vector>
 
-#define PIXELW 1 // 2
+#define SCRDEPTH 2  // or 6 for 64cols lesser resolution
+
+#if (SCRDEPTH <= 4)
 #define HALF 1
+#define SCRMODE (HIRES|LACE)
+#define SCMOUSE 2
+#else
+#define HALF 2
+#define SCRMODE EXTRA_HALFBRITE
+#define SCMOUSE 1
+#endif
+#define PIXELW 1 // 2
 #define MAX_ITER iter
-#define IMG_W (320 / HALF)      // 320
-#define IMG_H (256 / HALF - 20) // 200
+#define IMG_W (640 / HALF)      // 320
+#define IMG_H (512 / HALF - 20) // 200
 #define MTYPE double
 
 #define CSIZE (IMG_W * IMG_H) / 8
-#define PAL_SIZE 64 //(2 * PIXELW)
+#define PAL_SIZE (1L << SCRDEPTH)
 
 // set this to enable direct output on C64 gfx mem.
 // #define C64
@@ -122,17 +132,29 @@ static struct RastPort *rp;
 static struct SimpleSprite sprite_ul = {0};
 static struct SimpleSprite sprite_lr = {0};
 static char title[24] = "Mandelbrot";
+#if 1
 static struct NewScreen Screen1 = {
-    0, 0, IMG_W, IMG_H + 20, 6, /* Screen of 640 x 480 of depth 8 (2^8 = 256 colours)    */
+    0, 0, IMG_W, IMG_H + 20, SCRDEPTH, /* Screen of 640 x 480 of depth 8 (2^8 = 256 colours)    */
     DETAILPEN, BLOCKPEN,
-    EXTRA_HALFBRITE, /* see graphics/view.h for view modes */
-    CUSTOMSCREEN,    /* Screen types */
+    SCRMODE, /* see graphics/view.h for view modes */
+    CUSTOMSCREEN | SCREENQUIET,    /* Screen types */
     NULL,            /* Text attributes (use defaults) */
     (char *)title,
     NULL,
     NULL};
+#else
+static struct NewScreen Screen1 = {
+    0, 0, IMG_W, IMG_H + 20, 4, /* Screen of 640 x 480 of depth 8 (2^8 = 256 colours)    */
+    DETAILPEN, BLOCKPEN,
+    LACE | HIRES, /* see graphics/view.h for view modes */
+    CUSTOMSCREEN| SCREENQUIET,    /* Screen types */
+    NULL,            /* Text attributes (use defaults) */
+    (char *)title,
+    NULL,
+    NULL};
+#endif
 static struct NewWindow param_dialog = {
-    0, 0,
+    WINX-200-1, 30,
     200, 50,
     0, 1,
     IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS | IDCMP_RAWKEY,
@@ -221,7 +243,7 @@ void sprite_setup(struct Screen *myScreen)
 
     /* install sprite data and move sprite to start position. */
     ChangeSprite(NULL, &sprite_ul, sprite_data_ul);
-    MoveSprite(NULL, &sprite_ul, -1, 20);
+    MoveSprite(NULL, &sprite_ul, -1, 20 / SCMOUSE);
 
     sprnum = GetSprite(&sprite_lr, 3);
     // printf("sprite lr num = %d\n", sprnum);
@@ -237,21 +259,18 @@ void sprite_setup(struct Screen *myScreen)
 
     /* install sprite data and move sprite to start position. */
     ChangeSprite(NULL, &sprite_lr, sprite_data_lr);
-    MoveSprite(NULL, &sprite_lr, WINX - 16, WINY + 4);
+    MoveSprite(NULL, &sprite_lr, WINX / SCMOUSE - 16, WINY / SCMOUSE + 4);
 }
 
 extern "C" void run_animation(struct Window *w);
 
 void setup_screen(void)
 {
-    //log_msg("%s: 0\n", __FUNCTION__);
     myScreen = OpenScreen(&Screen1); /* & (ampersand) means address of */
-    //log_msg("%s: 1\n", __FUNCTION__);
     ScreenToFront(myScreen);
     ShowTitle(myScreen, TRUE);
     MakeScreen(myScreen);
     sprite_setup(myScreen);
-    //log_msg("%s: 2\n", __FUNCTION__);
     struct NewWindow winlayout = {
         0 * WINX / 4, 0 * WINY / 4 + 10,
         WINX, WINY + 10,
@@ -264,7 +283,6 @@ void setup_screen(void)
         0, 0,
         WINX, WINY,
         CUSTOMSCREEN};
-    //log_msg("%s: 3\n", __FUNCTION__);
     myWindow = OpenWindow(&winlayout);
     rp = myWindow->RPort;
     param_dialog.Screen = myScreen;
@@ -273,6 +291,7 @@ void setup_screen(void)
     if (0 == OpenDevice("console.device",-1,(struct IORequest *)&ioreq,0)) {
         ConsoleDevice = (struct Library *)ioreq.io_Device;  
     }
+    //run_animation(myWindow);
 }
 
 /* Convert RAWKEYs into VANILLAKEYs, also shows special keys like HELP, Cursor Keys,
@@ -434,7 +453,7 @@ int fetch_param(void)
                 {
                     new_iter = strtol(buf, NULL, 10);
                     if ((errno != 0) ||
-                        (new_iter < 32) || (new_iter > 1024))
+                        (new_iter < 16) || (new_iter > 1024))
                     {
                         DisplayBeep(myScreen);
                         log_msg("%s: iter out of range: %d\n", __FUNCTION__, new_iter);
@@ -545,7 +564,7 @@ void amiga_zoom(mandel<MTYPE> *m)
                     break;
                 if (pIMsg->MouseY < 10)
                     break;
-                MoveSprite(NULL, &sprite_lr, pIMsg->MouseX - 16, pIMsg->MouseY - 4);
+                MoveSprite(NULL, &sprite_lr, pIMsg->MouseX / SCMOUSE - 16, pIMsg->MouseY / SCMOUSE - 4 * SCMOUSE);  // weird
 #if 0		
 		SetDrMd(rp, COMPLEMENT);
 		SetAPen(rp, 0);
@@ -559,7 +578,7 @@ void amiga_zoom(mandel<MTYPE> *m)
                     stx = pIMsg->MouseX;
                 if (sty >= pIMsg->MouseY)
                     sty = pIMsg->MouseY;
-                MoveSprite(NULL, &sprite_ul, stx - 1, sty + 10);
+                MoveSprite(NULL, &sprite_ul, (stx - 1) / SCMOUSE, (sty + 10) / SCMOUSE);
                 break;
             case IDCMP_MOUSEBUTTONS:
                 if (pIMsg->Code == SELECTDOWN)
@@ -568,13 +587,13 @@ void amiga_zoom(mandel<MTYPE> *m)
                     sty = pIMsg->MouseY;
                     // log_msg("mouse select start: (%d,%d)\n", stx, sty);
                     ReportMouse(TRUE, myWindow);
-                    MoveSprite(NULL, &sprite_ul, pIMsg->MouseX - 1, pIMsg->MouseY + 10);
+                    MoveSprite(NULL, &sprite_ul, (pIMsg->MouseX - 1) / SCMOUSE, (pIMsg->MouseY + 10) / SCMOUSE);
                 }
                 if (pIMsg->Code == SELECTUP)
                 {
                     ReportMouse(FALSE, myWindow);
-                    MoveSprite(NULL, &sprite_ul, -1, 20);
-                    MoveSprite(NULL, &sprite_lr, WINX - 16, WINY + 4);
+                    MoveSprite(NULL, &sprite_ul, (-1 / SCMOUSE), 20 / SCMOUSE);
+                    MoveSprite(NULL, &sprite_lr, (WINX - 16) / SCMOUSE, (WINY + 4) / SCMOUSE);
                     if ((stx == pIMsg->MouseX) ||
                         (sty == pIMsg->MouseY) ||
                         (sty < 10) ||
