@@ -33,8 +33,8 @@
 #include <cstdint>
 typedef struct
 {
-    uint16_t x;
-    uint16_t y;
+    int x;
+    int y;
 } point_t;
 
 #ifndef PTHREADS
@@ -61,7 +61,7 @@ typedef struct
 #define sched_yield(...)
 #endif /* PTHREADS */
 
-pthread_mutex_t canvas_sem;
+extern pthread_mutex_t canvas_sem;
 
 template <typename myDOUBLE>
 class mandel
@@ -115,7 +115,7 @@ class mandel
 
     canvas_t canvas;
     char *stacks;
-    uint16_t xres, yres;
+    int xres, yres;
     color_t col_pal[PAL_SIZE];// = {0, 1, 2, 3};
     coord_t mark_x1, mark_y1, mark_x2, mark_y2;
     myDOUBLE last_xr, last_yr, ssw, ssh, transx, transy, xratio;
@@ -150,7 +150,7 @@ class mandel
 
         // log_msg("x/y %d/%d offs %d/%d\n", x, y, (x / (8 / PIXELW)) * colb, (y / 8) * lineb  + (y % 8));
         uint32_t cidx = (y / 8) * lineb + (y % 8) + (x / (8 / PIXELW)) * colb;
-        if (cidx >= CSIZE)
+        if (cidx >= (uint32_t)CSIZE)
         {
             // log_msg("Exceeding canvas!! %d, %d/%d\n", cidx, x, y);
             // delay (100 * 1000);
@@ -177,7 +177,7 @@ class mandel
 
     void canvas_dump(canvas_t c)
     {
-        return;
+//        return;
         for (int y = 0; y < IMG_H; y++)
         {
             log_msg("%02d: ", y);
@@ -254,6 +254,7 @@ class mandel
                     goto out;
                 }
 #else
+		luckfox_setpx(canvas, xk + xo, yk + yo, d);
                 canvas_setpx(canvas, xk + xo, yk + yo, d);
 #endif
                 //V(canvas_sem);
@@ -261,8 +262,10 @@ class mandel
             }
             x += incx;
         }
+#ifdef __amiga__	
         out:
         ;
+#endif	
     }
 
     static void *mandel_wrapper(void *param)
@@ -418,11 +421,18 @@ class mandel
     }
 
 public:
-    mandel(canvas_t c, char *st, myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh, uint16_t xr, uint16_t yr, myDOUBLE xrat = 1.0)
+    mandel(canvas_t c, char *st, myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh, int xr, int yr, myDOUBLE xrat = 1.0)
         : canvas(c), stacks(st), xres(xr), yres(yr), xratio(xrat), stop(0)
     {
+#ifdef LUCKFOX
+	luckfox_palette(col_pal);
+	int c1 = 0;
+	for (int i = 0; i < 320; i += 2, c1++)
+	    luckfox_rect(i, 0, i+1, 240, col_pal[c1]);
+#else	
         for (int i = 0; i < PAL_SIZE; i++)
             col_pal[i] = i;
+#endif	
         _mask = 1;
         for (int i = 1; i < PIXELW; i++)
         {
@@ -451,7 +461,7 @@ public:
 
     void dump_result(void)
     {
-#ifndef C64
+#if !defined(C64) && !defined(LUCKFOX)
         canvas_dump(canvas);
 #endif
         struct timespec dt;

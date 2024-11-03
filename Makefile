@@ -62,14 +62,17 @@ anim: anim.o animtools.o
 	$(CC) $(LDFLAGS) -o $@ $^ -lm
 	$(STRIP) $@
 
-mandel.o: mandel.cpp mandelbrot.h
+mandel.o: mandel.cpp mandelbrot.h mandel-arch.h
 	$(CPLUSPLUS) $(CPPFLAGS) -c $< -o $@ -DPTHREADS 
 
-mandel: mandel.o posix-clockfnpp.o anim.o animtools.o
+mandel-amiga.o: mandel-amiga.cpp mandel-arch.h mandelbrot.h
+	$(CPLUSPLUS) $(CPPFLAGS) -c $< -o $@ -DPTHREADS 
+
+mandel: mandel.o posix-clockfnpp.o anim.o animtools.o mandel-amiga.o
 	$(CPLUSPLUS) $(LDFLAGS) -o $@ $^ -lpthread
 	$(STRIP) $@
 
-mandel13.o: mandel.cpp mandelbrot.h
+mandel13.o: mandel.cpp mandelbrot.h mandel-amiga.o
 	$(CPLUSPLUS) -g -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
 
 mandel13: mandel13.o posix-clockfnpp.o anim.o animtools.o
