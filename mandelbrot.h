@@ -237,8 +237,8 @@ class mandel
         int yk = yo;
         if ((xl == xh) || (yl == yh))
         {
-            log_msg("assertion failed: ");
-            // std::cout << "xl=" << xl << ",xh=" << xh << ", yl=" << yl << ",yh=" << yh << '\n';
+            //log_msg("assertion failed: xl=%d, xh=%d, yl=%d, yh=%d\n", xl, xh, yl, yh);
+            log_msg("assertion failed - reached fixp/fpu limit!\n");
             return;
         }
         x = xl;
@@ -356,7 +356,7 @@ class mandel
 #ifndef PTHREADS
                 if (clock_gettime(CLOCK_REALTIME, &tstart) < 0)
                     perror("clock_gettime()");
-                // log_msg("start at %ld.%06ld\n", tstart.tv_sec % 60, tstart.tv_nsec / 1000);
+                //log_msg("start at %ld.%06ld\n", tstart.tv_sec % 60, tstart.tv_nsec / 1000);
                 mandel_wrapper(tp[t]);
 #endif
 #ifdef __linux__
@@ -394,9 +394,9 @@ class mandel
 
         if (clock_gettime(CLOCK_REALTIME, &tend) < 0)
             perror("clock_gettime()");
-            // log_msg("end at %ld.%06ld\n", tend.tv_sec % 60, tend.tv_nsec / 1000);
+        //log_msg("end at %ld.%06ld\n", tend.tv_sec % 60, tend.tv_nsec / 1000);
 
-        log_msg("all threads finished.\n");
+        //log_msg("all threads finished.\n");
         free_ressources();
         stop = 0;
     }
@@ -487,6 +487,7 @@ public:
             mark_x2 = 0;
         if (mark_y2 < 0)
             mark_y2 = 0;
+        //log_msg("rect coord: [%d,%d]x[%d,%d] - ssw=%d,ssh=%d,trx=%d,try=%d\n", mark_x1, mark_y1, mark_x2, mark_y2, ssw, ssh, transx, transy);
         log_msg("rect coord: [%d,%d]x[%d,%d]\n", mark_x1, mark_y1, mark_x2, mark_y2);
         mandel_setup(sqrt(NO_THREADS),
                      static_cast<myDOUBLE>(mark_x1 * ssw + transx),

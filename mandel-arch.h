@@ -1,10 +1,10 @@
 /* definition section for globals */
-#define MTYPE int  //double
+#define MTYPE int64_t  //double
 #define INTMATH    // goes along with int above, on Intels or other fast FPUs, double/float can be faster
 #define MAX_ITER_INIT 64
 
 #ifdef INTMATH
-#define INTSCALE 1024
+#define INTSCALE 102400000LL
 #define INTIFY(a) ((a) * INTSCALE)
 #define INTIFY2(a) ((a) * INTSCALE * INTSCALE)
 #define DEINTIFY(a) ((a) / INTSCALE)
@@ -51,7 +51,7 @@ extern pthread_mutex_t logmutex;
 #include <clib/console_protos.h>
 #include <vector>
 
-#define SCRDEPTH 6  // or 6 for 64cols lesser resolution
+#define SCRDEPTH 4  // or 6 for 64cols lesser resolution
 #define PAL_SIZE (1L << SCRDEPTH)
 #define PIXELW 1
 

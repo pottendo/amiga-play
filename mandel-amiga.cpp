@@ -207,11 +207,6 @@ void amiga_setup_screen(void)
     }
     run_setupDisplay(myWindow, 0, NULL);
     run_setupAnimation(myWindow);
-
-    //while (1) {
-    //    run_stepAnimation();
-    //    Delay(2);
-    //}
 #ifdef PTHREADS
     pthread_t ath;
     static pthread_attr_t pattr;
@@ -476,7 +471,7 @@ void amiga_zoom_ui(mandel<MTYPE> *m)
     while (closewin == FALSE)
     {
 #ifndef PTHREADS
-        //run_stepAnimation(); // FIXME!
+        run_stepAnimation(); // FIXME!
 #else
         WaitPort(myWindow->UserPort);
 #endif
@@ -553,7 +548,8 @@ void amiga_zoom_ui(mandel<MTYPE> *m)
                         closewin = TRUE;
                         break;
                     case 3:
-                        m->mandel_presetup(-1.5, -1.0, 0.5, 1.0);
+                        m->mandel_presetup(static_cast<MTYPE>(INTIFY(-1.5)), static_cast<MTYPE>(INTIFY(-1.0)),
+                                           static_cast<MTYPE>(INTIFY(0.5)), static_cast<MTYPE>(INTIFY(1.0)));
                     case 2:
                     {
                         point_t lu{0, 0}, rd{WINX, WINY};
