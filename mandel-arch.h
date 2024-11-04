@@ -1,5 +1,5 @@
 /* definition section for globals */
-#define SCRDEPTH 4  // or 6 for 64cols lesser resolution
+#define SCRDEPTH 6  // or 6 for 64cols lesser resolution
 #define MTYPE double
 
 #define CSIZE (IMG_W * IMG_H) / 8
@@ -88,6 +88,11 @@ void init_luckfox(void);
 void luckfox_palette(uint16_t *p);
 void luckfox_play(void);
 void luckfox_rect(int x1, int y1, int x2, int y2, uint16_t c);
+#undef MAX_ITER
+#define MAX_ITER iter
+
+#define zoom_ui(...) luckfox_play()
+#define setup_screen init_luckfox
 
 #else
 #define init_luckfox(...)

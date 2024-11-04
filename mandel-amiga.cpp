@@ -19,7 +19,9 @@ extern "C"
                                       SHORT dbufing,
                                       struct BitMap **myBitMaps);
 }
+#ifdef PTHREADS
 static pthread_mutex_t anim_ctrl;
+#endif
 struct Library *ConsoleDevice;
 struct IOStdReq ioreq;
 static struct Screen *myScreen;
@@ -29,6 +31,7 @@ static struct SimpleSprite sprite_ul = {0};
 static struct SimpleSprite sprite_lr = {0};
 static char title[24] = "Mandelbrot";
 static bool animation = true;
+
 #if 1
 static struct NewScreen Screen1 = {
     0, 0, IMG_W, IMG_H + 20, SCRDEPTH, /* Screen of 640 x 480 of depth 8 (2^8 = 256 colours)    */
@@ -204,16 +207,16 @@ void amiga_setup_screen(void)
     }
     run_setupDisplay(myWindow, 0, NULL);
     run_setupAnimation(myWindow);
-#ifdef PTHREADS    
+#ifdef PTHREADS
     pthread_t ath;
     static pthread_attr_t pattr;
     static char *anim_stack[4096];
+    pthread_mutex_init(&anim_ctrl, NULL);
     pthread_attr_init(&pattr);
     pthread_attr_setstack(&pattr, anim_stack, 4096);
     if (pthread_create(&ath, &pattr, anim_thread, NULL) != 0)
         log_msg("%s: couldn't start animation thread\n", __FUNCTION__);
     pthread_detach(ath);
-    pthread_mutex_init(&anim_ctrl, NULL);
 #endif    
 }
 
@@ -270,12 +273,10 @@ char fetch_key(struct IntuiMessage *pIMsg, struct Window *win)
 int amiga_setpixel(void *not_used, int x, int y, int col)
 {
     //    log_msg("%s: %dx%d->%d\n", __FUNCTION__, x, y, col);
-    pthread_mutex_lock(&logmutex);
     SetAPen(rp, col);
     WritePixel(rp, x, y + 10);
     //    Move(rp, x, y+10);
     //    Draw(rp, WINX, y + 10);
-    pthread_mutex_unlock(&logmutex);
     struct Message *pMsg;
     int ret = 0;
 
@@ -470,7 +471,7 @@ void amiga_zoom_ui(mandel<MTYPE> *m)
     while (closewin == FALSE)
     {
 #ifndef PTHREADS
-        run_stepAnimation();
+        //run_stepAnimation(); // FIXME!
 #else
         WaitPort(myWindow->UserPort);
 #endif
@@ -563,11 +564,13 @@ void amiga_zoom_ui(mandel<MTYPE> *m)
             }
         }
     }
-
+#ifdef PTHREADS
     pthread_mutex_lock(&anim_ctrl);
     animation = false;
+    pthread_mutex_unlock(&anim_ctrl);
     Delay(5);
     pthread_mutex_lock(&anim_ctrl);
+#endif    
     CloseWindow(myWindow);
     if (myScreen)
         CloseScreen(myScreen); /* Close screen using myScreen pointer */

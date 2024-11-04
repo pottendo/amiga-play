@@ -245,19 +245,19 @@ class mandel
             for (yk = 0; yk < height; yk++)
             {
                 int d = mandel_calc_point(x, y);
-                //P(canvas_sem);
+                P(canvas_sem);
 #ifdef __amiga__
                 int amiga_setpixel(void *, int x, int y, int col);
                 if (stop || (stop = amiga_setpixel(NULL, xk + xo, yk + yo, d)))
                 {
-                    //V(canvas_sem);
+                    V(canvas_sem);
                     goto out;
                 }
 #else
-		luckfox_setpx(canvas, xk + xo, yk + yo, d);
+		        luckfox_setpx(canvas, xk + xo, yk + yo, d);
                 canvas_setpx(canvas, xk + xo, yk + yo, d);
 #endif
-                //V(canvas_sem);
+                V(canvas_sem);
                 y += incy;
             }
             x += incx;
@@ -375,7 +375,7 @@ class mandel
 #ifdef PTHREADS
         memset(canvas, 0, CSIZE);
 #endif
-#if defined(CLOCK_GETTIME) && defined(PTHREADS)
+#if defined(PTHREADS)
         if (clock_gettime(CLOCK_REALTIME, &tstart) < 0)
             perror("clock_gettime()");
             // log_msg("start at %ld.%06ld\n", tstart.tv_sec % 60, tstart.tv_nsec / 1000);
@@ -391,11 +391,11 @@ class mandel
             // log_msg("main thread waiting for %i threads...\n", i);
             PSem(master_sem); // wait until all workers have finished
         }
-#ifdef CLOCK_GETTIME
+
         if (clock_gettime(CLOCK_REALTIME, &tend) < 0)
             perror("clock_gettime()");
             // log_msg("end at %ld.%06ld\n", tend.tv_sec % 60, tend.tv_nsec / 1000);
-#endif
+
         //log_msg("all threads finished.\n");
         free_ressources();
         stop = 0;
@@ -461,7 +461,7 @@ public:
 
     void dump_result(void)
     {
-#if !defined(C64) && !defined(LUCKFOX)
+#if !defined(C64) && !defined(LUCKFOX) && !defined(__amiga__)
         canvas_dump(canvas);
 #endif
         struct timespec dt;

@@ -63,7 +63,7 @@ int main(void)
 #ifndef CONFIG_BOARD_ORANGECART
     // stacks = (char *) alloca(STACK_SIZE * NO_THREADS); //new char[STACK_SIZE * NO_THREADS]();
     stacks = new char[STACK_SIZE * NO_THREADS]();
-    log_msg("%s: stack_size per thread = %d, no threads=%d, iter = %d, palette = %d\n", __FUNCTION__, STACK_SIZE, NO_THREADS, iter, PAL_SIZE);
+    log_msg("%s: stack_size per thread = %d, no threads=%d, iter = %d, palette = %ld\n", __FUNCTION__, STACK_SIZE, NO_THREADS, iter, PAL_SIZE);
 #endif
 
 #ifdef C64
@@ -73,8 +73,6 @@ int main(void)
     c64.screencols(VIC::BLACK, VIC::BLACK);
     c64.gfx(VICBank1, VICModeGfxMC, 15);
     // xrat = 16.0 / 9.0;
-#endif
-#ifndef __amiga__
     int col1, col2, col3;
     col1 = 0xb;
     col2 = 0xc;
@@ -116,10 +114,12 @@ std::vector<rec_t> recs = {
                                             IMG_W / PIXELW, IMG_H, xrat};
         luckfox_play();
         zoom_ui(m);
+        delete m;
+        return 0;
         for (size_t i = 0; i < recs.size(); i++)
         {
             auto it = &recs[i];
-            log_msg("%d/%d, zooming into [%d,%d]x[%d,%d]...stacks=%p\n", i, recs.size(), it->lu.x, it->lu.y, it->rd.x, it->rd.y, m->get_stacks());
+            log_msg("%ld/%ld, zooming into [%d,%d]x[%d,%d]...stacks=%p\n", i, recs.size(), it->lu.x, it->lu.y, it->rd.x, it->rd.y, m->get_stacks());
             m->select_start(it->lu);
             m->select_end(it->rd);
         }

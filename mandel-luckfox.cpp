@@ -9,6 +9,8 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <linux/fb.h>
 #include <sys/ioctl.h>
+
+#include "mandel-arch.h"
 extern void log_msg(const char *s, ...);
 
 uint16_t *tft_canvas; // must not be static?!
