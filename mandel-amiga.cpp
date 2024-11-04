@@ -207,6 +207,11 @@ void amiga_setup_screen(void)
     }
     run_setupDisplay(myWindow, 0, NULL);
     run_setupAnimation(myWindow);
+
+    //while (1) {
+    //    run_stepAnimation();
+    //    Delay(2);
+    //}
 #ifdef PTHREADS
     pthread_t ath;
     static pthread_attr_t pattr;
@@ -565,10 +570,10 @@ void amiga_zoom_ui(mandel<MTYPE> *m)
         }
     }
 #ifdef PTHREADS
-    pthread_mutex_lock(&anim_ctrl);
+    //pthread_mutex_lock(&anim_ctrl);
     animation = false;
-    pthread_mutex_unlock(&anim_ctrl);
-    Delay(5);
+    //pthread_mutex_unlock(&anim_ctrl);
+    Delay(10);
     pthread_mutex_lock(&anim_ctrl);
 #endif    
     CloseWindow(myWindow);

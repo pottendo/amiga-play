@@ -20,21 +20,16 @@ void log_msg(const char *s, ...)
 }
 #endif  /* PTHREADS */
 
-// #define NO_LOG
-#ifdef NO_LOG
-#define log_msg(...)
-#endif
-
+// globals
 int img_w, img_h;   // used by luckfox
-int iter = 32 * 4;  // used by Amiga
+int iter = MAX_ITER_INIT;  // used by Amiga
+MTYPE xrat = 1.0;
 
 // set this to enable direct output on C64 gfx mem.
 // #define C64
-
 #ifdef C64
 #include "c64-lib.h"
 #else
-//static char cv[CSIZE] = {};
 char *cv;
 #endif
 
@@ -48,7 +43,6 @@ static char *stacks; // stacks[STACK_SIZE * NO_THREADS];
 #endif
 
 #include "mandelbrot.h"
-MTYPE xrat = 1.0;
 
 typedef struct
 {
@@ -78,7 +72,6 @@ int main(void)
     col2 = 0xc;
     col3 = 14; // VIC::LIGHT_BLUE;
 #endif
-    init_luckfox();
     cv = new char[CSIZE]();
     setup_screen();
 #if 0
@@ -112,9 +105,7 @@ std::vector<rec_t> recs = {
                                             static_cast<MTYPE>(-1.5), static_cast<MTYPE>(-1.0), 
                                             static_cast<MTYPE>(0.5), static_cast<MTYPE>(1.0), 
                                             IMG_W / PIXELW, IMG_H, xrat};
-        luckfox_play();
         zoom_ui(m);
-        delete m;
         return 0;
         for (size_t i = 0; i < recs.size(); i++)
         {
@@ -134,8 +125,8 @@ std::vector<rec_t> recs = {
         col3 %= 0xf;
         if (col3 == 0)
             col3++;
-        delete m;
 #endif        
+        delete m;
     }
 #ifdef __ZEPHYR__
     while (1)

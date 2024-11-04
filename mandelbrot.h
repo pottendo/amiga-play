@@ -23,10 +23,6 @@
 #include <unistd.h>
 #include <complex>
 // #include <iostream>
-#ifdef PTHREADS
-#include <pthread.h>
-#include <semaphore.h>
-#endif
 #include <signal.h>
 
 #include <time.h>
@@ -37,7 +33,13 @@ typedef struct
     int y;
 } point_t;
 
-#ifndef PTHREADS
+#ifdef PTHREADS
+#include <pthread.h>
+#include <semaphore.h>
+extern pthread_mutex_t canvas_sem;
+#define P P_
+#define V V_
+#else
 // make those calls dummies
 #define pthread_mutex_init(...)
 #define pthread_mutex_destroy(...)
@@ -59,9 +61,10 @@ typedef struct
 #define pthread_t int
 #define pthread_mutex_t int
 #define sched_yield(...)
+#define P(...)
+#define V(...)
 #endif /* PTHREADS */
 
-extern pthread_mutex_t canvas_sem;
 
 template <typename myDOUBLE>
 class mandel
@@ -122,11 +125,11 @@ class mandel
     int stop;
     struct timespec tstart, tend;
 
-    static void P(pthread_mutex_t &m)
+    static void P_(pthread_mutex_t &m)
     {
         pthread_mutex_lock(&m);
     }
-    static void V(pthread_mutex_t &m)
+    static void V_(pthread_mutex_t &m)
     {
         pthread_mutex_unlock(&m);
     }
@@ -139,7 +142,7 @@ class mandel
         sem_post(&s);
     }
 
-    void canvas_setpx(canvas_t &canvas, coord_t x, coord_t y, color_t c)
+    void canvas_setpx_(canvas_t &canvas, coord_t x, coord_t y, color_t c)
     {
         uint32_t h = x % (8 / PIXELW);
         uint32_t shift = (8 / PIXELW - 1) - h;
@@ -254,7 +257,6 @@ class mandel
                     goto out;
                 }
 #else
-		        luckfox_setpx(canvas, xk + xo, yk + yo, d);
                 canvas_setpx(canvas, xk + xo, yk + yo, d);
 #endif
                 V(canvas_sem);
@@ -374,8 +376,6 @@ class mandel
     {
 #ifdef PTHREADS
         memset(canvas, 0, CSIZE);
-#endif
-#if defined(PTHREADS)
         if (clock_gettime(CLOCK_REALTIME, &tstart) < 0)
             perror("clock_gettime()");
             // log_msg("start at %ld.%06ld\n", tstart.tv_sec % 60, tstart.tv_nsec / 1000);
@@ -396,7 +396,7 @@ class mandel
             perror("clock_gettime()");
             // log_msg("end at %ld.%06ld\n", tend.tv_sec % 60, tend.tv_nsec / 1000);
 
-        //log_msg("all threads finished.\n");
+        log_msg("all threads finished.\n");
         free_ressources();
         stop = 0;
     }

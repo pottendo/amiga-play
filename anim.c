@@ -1063,15 +1063,14 @@ void run_setupAnimation(struct Window *win)
 	if (NULL != (boingOb = setupBoing(0)))
 	{
 		AddAnimOb(boingOb, &animKey, &win->WScreen->RastPort);
-//		runAnimation(win, 0, &animKey, NULL);
+		//runAnimation(win, 0, &animKey, NULL);
 	}
 	else
 		printf("%s: setupBoing() failed\n", __FUNCTION__);
 }
 
 void run_stepAnimation(void) 
-{
-	WORD toggleFrame = 0;	
+{	WORD toggleFrame = 0;	
 	DrawGels(cached_win, &animKey, 0, &toggleFrame, NULL);
 }
 

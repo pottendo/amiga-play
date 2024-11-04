@@ -10,7 +10,7 @@ CFLAGS = -g -Wall $(OPTIMIZE) $(KICK)
 CPPFLAGS = -g -Wall $(OPTIMIZE) $(KICK)
 OPTIMIZE = -O3
 LDFLAGS = $(KICK) -N
-CPROGRAMS = hello-world hello-pthread time-test scratch #anim #bobs-sprites
+CPROGRAMS = hello-world hello-pthread #anim #bobs-sprites
 CPPPROGRAMS = mandel mandel13 #hello-cpp 
 PROGRAMS = $(CPROGRAMS) $(CPPPROGRAMS)
 COBJECTS = $(addsuffix .o,$(CPROGRAMS))
@@ -76,9 +76,18 @@ mandel13.o: mandel.cpp mandelbrot.h mandel-arch.h
 	$(CPLUSPLUS) -g -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
 
 mandel-amiga13.o: mandel-amiga.cpp mandel-arch.h
-	$(CPLUSPLUS) $(CPPFLAGS) -c $< -o $@
+	$(CPLUSPLUS) -g -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
 
-mandel13: mandel13.o posix-clockfnpp.o anim.o animtools.o mandel-amiga13.o
+anim13.o: anim.c
+	$(CC) -g -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
+
+animtools13.o: animtools.c
+	$(CC) -g -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
+
+posix-clockfncpp13.o: posix-clockfnpp.cpp posix-clockfn.c
+	$(CPLUSPLUS) -g -Wall  $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
+
+mandel13: mandel13.o posix-clockfncpp13.o anim13.o animtools13.o mandel-amiga13.o
 	$(CPLUSPLUS) -N -mcrt=nix13 -o $@ $^
 	$(STRIP) $@
 
