@@ -102,8 +102,8 @@ std::vector<rec_t> recs = {
         memset(&c64.get_mem()[0xd800], col3, 1000);
 #endif
         mandel<MTYPE> *m = new mandel<MTYPE>{cv, stacks, 
-                                            static_cast<MTYPE>(-1.5), static_cast<MTYPE>(-1.0), 
-                                            static_cast<MTYPE>(0.5), static_cast<MTYPE>(1.0), 
+                                            static_cast<MTYPE>(INTIFY(-1.5)), static_cast<MTYPE>(INTIFY(-1.0)), 
+                                            static_cast<MTYPE>(INTIFY(0.5)), static_cast<MTYPE>(INTIFY(1.0)), 
                                             IMG_W / PIXELW, IMG_H, xrat};
         zoom_ui(m);
         return 0;

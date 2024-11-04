@@ -219,9 +219,9 @@ class mandel
         // std::cout << "calc: " << point << '\n';
         std::complex<myDOUBLE> z = point;
         int nb_iter = 1;
-        while (abs2(z) < 4 && nb_iter <= max_iter)
+        while (abs2(z) < INTIFY2(4) && nb_iter <= max_iter)
         {
-            z = z * z + point;
+            z = (DEINTIFY(z * z) + point);
             nb_iter++;
         }
         if (nb_iter < max_iter)

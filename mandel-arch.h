@@ -1,6 +1,18 @@
 /* definition section for globals */
-#define MTYPE double
+#define MTYPE int  //double
+#define INTMATH    // goes along with int above, on Intels or other fast FPUs, double/float can be faster
 #define MAX_ITER_INIT 64
+
+#ifdef INTMATH
+#define INTSCALE 1024
+#define INTIFY(a) ((a) * INTSCALE)
+#define INTIFY2(a) ((a) * INTSCALE * INTSCALE)
+#define DEINTIFY(a) ((a) / INTSCALE)
+#else
+#define INTIFY(a) (a)
+#define INTIFY2(a) (a)
+#define DEINTIFY(a) (a)
+#endif
 
 void log_msg(const char *s, ...);
 // #define NO_LOG
@@ -22,7 +34,7 @@ extern pthread_mutex_t logmutex;
 #else
 #define NO_THREADS 1 // singlethreaded
 #define log_msg printf
-#define STACK_SIZE 1024*16
+#define STACK_SIZE 1024
 #endif
 #define MAX_ITER iter   // relict
 
