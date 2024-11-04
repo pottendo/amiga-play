@@ -30,7 +30,7 @@ MTYPE xrat = 1.0;
 #ifdef C64
 #include "c64-lib.h"
 #else
-char *cv;
+static char *cv;
 #endif
 
 #ifdef CONFIG_BOARD_ORANGECART
@@ -57,7 +57,6 @@ int main(void)
 #ifndef CONFIG_BOARD_ORANGECART
     // stacks = (char *) alloca(STACK_SIZE * NO_THREADS); //new char[STACK_SIZE * NO_THREADS]();
     stacks = new char[STACK_SIZE * NO_THREADS]();
-    log_msg("%s: stack_size per thread = %d, no threads=%d, iter = %d, palette = %ld\n", __FUNCTION__, STACK_SIZE, NO_THREADS, iter, PAL_SIZE);
 #endif
 
 #ifdef C64
@@ -72,8 +71,10 @@ int main(void)
     col2 = 0xc;
     col3 = 14; // VIC::LIGHT_BLUE;
 #endif
-    cv = new char[CSIZE]();
     setup_screen();
+    cv = new char[CSIZE]();
+    log_msg("%s: stack_size per thread = %d, no threads=%d, iter = %d, palette = %ld, stacks = %p, cv = %p, CSIZE = %d\n", 
+        __FUNCTION__, STACK_SIZE, NO_THREADS, iter, PAL_SIZE, stacks, cv, CSIZE);
 #if 0
 std::vector<rec_t> recs = { 
         {{00, 00},{80,100}}, 

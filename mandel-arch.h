@@ -90,9 +90,14 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 #ifdef LUCKFOX
 #define IMG_W img_w
 #define IMG_H img_h
+#define SCRDEPTH 16  // or 6 for 64cols lesser resolution
+#define PAL_SIZE (1L << SCRDEPTH)
+#define PIXELW 1
+#define CSIZE (img_w * img_h) / 8
 
 #ifndef PTHREAD_STACK_MIN
-#define PTHREAD_STACK_MIN 16384
+#undef STACK_SIZE
+#define STACK_SIZE 16384
 #endif
 
 #include <stdint.h>
