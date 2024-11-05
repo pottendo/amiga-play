@@ -183,9 +183,9 @@ class mandel
 //        return;
         for (int y = 0; y < IMG_H; y++)
         {
-            log_msg("%02d: ", y);
+            log_msg("%03d: ", y);
             int offs = (y / 8) * IMG_W + (y % 8);
-            for (auto i = 0; i < IMG_W / 3; i += 8)
+            for (auto i = 0; i < IMG_W / 1; i += 8)
             {
                 // log_msg("idx: %032d ", offs + i);
                 dump_bits(c[offs + i]);

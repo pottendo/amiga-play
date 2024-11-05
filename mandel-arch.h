@@ -56,7 +56,7 @@ extern pthread_mutex_t logmutex;
 #define PIXELW 1
 
 #if (SCRDEPTH > 6)
-#error "pixeldepth too large, must be < 6"
+#error "pixeldepth too large, must be <= 6"
 #endif
 #if (SCRDEPTH <= 4)
 #define HALF 1
@@ -67,7 +67,7 @@ extern pthread_mutex_t logmutex;
 //#define SCMOUSE 1
 #else
 #define HALF 2
-#define SCRMODE EXTRA_HALFBRITE
+#define SCRMODE (EXTRA_HALFBRITE)
 #define SCMOUSE 1
 #endif
 
@@ -117,10 +117,10 @@ void luckfox_rect(int x1, int y1, int x2, int y2, uint16_t c);
 #else /* else other architectures*/
 
 // non-specific architectures 
-#define IMG_W 200
-#define IMG_H 100
+#define IMG_W 256
+#define IMG_H 120
 #define SCRDEPTH 2
-#define CSIZE (IMG_W * IMG_H) / 8
+#define CSIZE ((IMG_W/8) * IMG_H)
 #define PAL_SIZE (1L << SCRDEPTH)
 #define PIXELW 2 // 2
 
