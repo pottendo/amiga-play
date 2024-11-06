@@ -1,8 +1,12 @@
-/* definition section for globals */
-#define MTYPE int64_t  //double
-#define INTMATH    // goes along with int above, on Intels or other fast FPUs, double/float can be faster
+#ifndef __MANDEL_ARCH_H__
+#define __MANDEL_ARCH_H__
+/* definition section for globals to adapt for some variation */
+#define MTYPE long long int  // double
+#define INTMATH              // goes along with int above, on Intels or other fast FPUs, double/float can be faster
 #define MAX_ITER_INIT 64
+//#define C64   // build for C64 GFX output
 
+// some global internals, no need to change normally
 #ifdef INTMATH
 #define INTSCALE 102400000LL
 #define INTIFY(a) ((a) * INTSCALE)
@@ -13,9 +17,11 @@
 #define INTIFY2(a) (a)
 #define DEINTIFY(a) (a)
 #endif
+#define alloc_stack new char[STACK_SIZE * NO_THREADS]()
+#define alloc_canvas new char[CSIZE]()
 
 void log_msg(const char *s, ...);
-// #define NO_LOG
+//#define NO_LOG
 #ifdef NO_LOG
 #define log_msg(...)
 #endif
@@ -84,6 +90,8 @@ void amiga_zoom_ui(mandel<MTYPE> *m);
 
 #define setup_screen amiga_setup_screen
 #define zoom_ui amiga_zoom_ui
+#define hook1(...)
+#define hook2(...)
 
 #else  /* __amiga__ */
 
@@ -113,10 +121,35 @@ void luckfox_rect(int x1, int y1, int x2, int y2, uint16_t c);
 #define zoom_ui(...) luckfox_play()
 #define setup_screen init_luckfox
 #define canvas_setpx luckfox_setpx
+#define hook1(...)
+#define hook2(...)
 
-#else /* else other architectures*/
+#else 
+#ifdef C64
+#if (NO_THREADS > 16)
+#error "too many threads for Orangencart's STACK_SIZE"
+#endif
+#define IMG_W 160
+#define IMG_H 200
+#define SCRDEPTH 2
+#define CSIZE ((IMG_W/8) * IMG_H)
+#define PAL_SIZE (1L << SCRDEPTH)
+#define PIXELW 2 // 2
+#define canvas_setpx canvas_setpx_
+#define setup_screen(...)
+#define zoom_ui(...)
 
-// non-specific architectures 
+#include "c64-lib.h"
+extern c64_t c64;
+extern char *c64_stack;
+#undef alloc_stack
+#define alloc_stack c64_stack
+#undef alloc_canvas
+#define alloc_canvas (char *)&c64.get_mem()[0x4000]
+#define hook1 c64_hook1
+#define hook2 c64_hook2
+
+#else // non-specific architectures 
 #define IMG_W 256
 #define IMG_H 120
 #define SCRDEPTH 2
@@ -124,9 +157,13 @@ void luckfox_rect(int x1, int y1, int x2, int y2, uint16_t c);
 #define PAL_SIZE (1L << SCRDEPTH)
 #define PIXELW 2 // 2
 
-#define setup_screen(...)
 #define canvas_setpx canvas_setpx_
+#define setup_screen(...)
 #define zoom_ui(...)
+#define hook1(...)
+#define hook2(...)
 
+#endif /* CONFIG_BOARD_ORANGECART */
 #endif /* LUCKFOX */
 #endif /* __amiga__ */
+#endif /* __MANDEL_ARCH_H__*/

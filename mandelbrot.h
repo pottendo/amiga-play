@@ -180,7 +180,6 @@ class mandel
 
     void canvas_dump(canvas_t c)
     {
-//        return;
         for (int y = 0; y < IMG_H; y++)
         {
             log_msg("%03d: ", y);
