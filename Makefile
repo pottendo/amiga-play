@@ -15,6 +15,7 @@ CPPPROGRAMS = mandel mandel13 #hello-cpp
 PROGRAMS = $(CPROGRAMS) $(CPPPROGRAMS)
 COBJECTS = $(addsuffix .o,$(CPROGRAMS))
 CPPOBJECTS = $(addsuffix .o,$(CPPPROGRAMS))
+MSOURCE = ../../pottendo-mandel
 
 ifeq ($(KICK1),)
 	KICK= -mcrt=nix20
@@ -62,21 +63,21 @@ anim: anim.o animtools.o
 	$(CC) $(LDFLAGS) -o $@ $^ -lm
 	$(STRIP) $@
 
-mandel.o: mandel.cpp mandelbrot.h mandel-arch.h
-	$(CPLUSPLUS) $(CPPFLAGS) -c $< -o $@ -DPTHREADS 
+mandel.o: $(MSOURCE)/mandel.cpp $(MSOURCE)/mandelbrot.h $(MSOURCE)/mandel-arch.h
+	$(CPLUSPLUS) -I$(MSOURCE) $(CPPFLAGS) -c $< -o $@ -DPTHREADS 
 
-mandel-amiga.o: mandel-amiga.cpp mandel-arch.h mandelbrot.h
-	$(CPLUSPLUS) $(CPPFLAGS) -c $< -o $@ -DPTHREADS 
+mandel-amiga.o: $(MSOURCE)/mandel-amiga.cpp $(MSOURCE)/mandel-arch.h $(MSOURCE)/mandelbrot.h
+	$(CPLUSPLUS) -I$(MSOURCE) $(CPPFLAGS) -c $< -o $@ -DPTHREADS 
 
 mandel: mandel.o posix-clockfnpp.o anim.o animtools.o mandel-amiga.o
 	$(CPLUSPLUS) $(LDFLAGS) -o $@ $^ -lpthread
 	$(STRIP) $@
 
-mandel13.o: mandel.cpp mandelbrot.h mandel-arch.h
-	$(CPLUSPLUS) -g -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
+mandel13.o: $(MSOURCE)/mandel.cpp $(MSOURCE)/mandelbrot.h $(MSOURCE)/mandel-arch.h
+	$(CPLUSPLUS) -I$(MSOURCE) -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
 
-mandel-amiga13.o: mandel-amiga.cpp mandel-arch.h
-	$(CPLUSPLUS) -g -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
+mandel-amiga13.o: $(MSOURCE)/mandel-amiga.cpp $(MSOURCE)/mandel-arch.h
+	$(CPLUSPLUS) -I$(MSOURCE) -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
 
 anim13.o: anim.c
 	$(CC) -g -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
