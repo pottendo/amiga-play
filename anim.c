@@ -70,6 +70,10 @@ struct GelsInfo *setupDisplay(struct Window **win,
 VOID DrawGels(struct Window *win, struct AnimOb **animKey, SHORT dbufing,
 			  WORD *toggleFrame, struct BitMap **myBitMaps);
 
+#ifndef ANIM_STANDALONE
+#include "mandel-arch.h"
+#endif
+
 /*--------------------------------------------------------------*/
 /*                                                              */
 /*--------------------------------------------------------------*/
@@ -85,14 +89,14 @@ VOID DrawGels(struct Window *win, struct AnimOb **animKey, SHORT dbufing,
 
 #define SBMWIDTH  320  /* My screen size constants. */
 #define SBMHEIGHT 200
-#define SBMDEPTH    4
 #define SCRNMODE NULL  /* (HIRES | LACE) for NewScreen, ends up in view.*/
 
 #define RBMWIDTH  320  /* My raster size constants. (These CAN differ) */
 #define RBMHEIGHT 256
-#define RBMDEPTH    4
 
-#if 0
+#if ANIM_STANDALONE
+#define SBMDEPTH    4
+#define RBMDEPTH    4
 /*--------------------------------------------------------------*/
 /*                                                              */
 /*--------------------------------------------------------------*/
@@ -740,9 +744,9 @@ if (NULL != (myBitMaps[0] =
 		InitBitMap(myBitMaps[0], depth, width, height);
 		InitBitMap(myBitMaps[1], depth, width, height);
 
-		if (NULL != setupPlanes(myBitMaps[0], depth, width, height))
+		if (0 != setupPlanes(myBitMaps[0], depth, width, height))
 			{
-			if (NULL != setupPlanes(myBitMaps[1], depth, width, height))
+			if (0 != setupPlanes(myBitMaps[1], depth, width, height))
 				return(myBitMaps);
 
 			freePlanes(myBitMaps[0], depth, width, height);
@@ -783,7 +787,7 @@ FreeMem(myBitMaps[0], (LONG)sizeof(struct BitMap));
 FreeMem(myBitMaps[1], (LONG)sizeof(struct BitMap));
 }
 
-#if 0
+#if ANIM_STANDALONE
 /*--------------------------------------------------------------
 **
 */
@@ -896,11 +900,11 @@ VOID DrawGels(struct Window *win,
 		WaitTOF();
 }
 
-#if 0
+#if ANIM_STANDALONE
 /*--------------------------------------------------------------
 **
 */
-VOID _main(int argc, char **argv)
+VOID main(int argc, char **argv)
 {
 struct BitMap	**myBitMaps;
 struct AnimOb	 *boingOb;
@@ -1063,7 +1067,7 @@ void run_setupAnimation(struct Window *win)
 	if (NULL != (boingOb = setupBoing(0)))
 	{
 		AddAnimOb(boingOb, &animKey, &win->WScreen->RastPort);
-//		runAnimation(win, 0, &animKey, NULL);
+		//runAnimation(win, 0, &animKey, NULL);
 	}
 	else
 		printf("%s: setupBoing() failed\n", __FUNCTION__);

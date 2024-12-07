@@ -10,12 +10,14 @@ CFLAGS = -g -Wall $(OPTIMIZE) $(KICK)
 CPPFLAGS = -g -Wall $(OPTIMIZE) $(KICK)
 OPTIMIZE = -O3
 LDFLAGS = $(KICK) -N
-CPROGRAMS = hello-world hello-pthread #anim #bobs-sprites
+CPROGRAMS = hello-world hello-pthread anims anims13 #bobs-sprites
 CPPPROGRAMS = mandel mandel13 #hello-cpp 
 PROGRAMS = $(CPROGRAMS) $(CPPPROGRAMS)
 COBJECTS = $(addsuffix .o,$(CPROGRAMS))
 CPPOBJECTS = $(addsuffix .o,$(CPPPROGRAMS))
 MSOURCE = ../../pottendo-mandel
+SUPW = -Wno-unused-but-set-variable -Wno-parentheses -Wno-int-conversion -Wno-unused-variable \
+	   -Wno-implicit-function-declaration -Wno-maybe-uninitialized -Wno-main
 
 ifeq ($(KICK1),)
 	KICK= -mcrt=nix20
@@ -59,7 +61,11 @@ hello-pthread: hello-pthread.o
 gui-hack: gui-hack.o mandellib.o
 	$(CC) $(LDFLAGS) -o $@ $^ -lm
 	$(STRIP) $@
-anim: anim.o animtools.o
+
+anims.o: anim.c
+	$(CC) -Wall $(OPTIMIZE) $(CFLAGS) $(SUPW) -DANIM_STANDALONE -c $< -o $@
+
+anims: anims.o animtools.o
 	$(CC) $(LDFLAGS) -o $@ $^ -lm
 	$(STRIP) $@
 
@@ -68,6 +74,9 @@ mandel.o: $(MSOURCE)/mandel.cpp $(MSOURCE)/mandelbrot.h $(MSOURCE)/mandel-arch.h
 
 mandel-amiga.o: $(MSOURCE)/mandel-amiga.cpp $(MSOURCE)/mandel-arch.h $(MSOURCE)/mandelbrot.h
 	$(CPLUSPLUS) -I$(MSOURCE) $(CPPFLAGS) -c $< -o $@ -DPTHREADS 
+
+anim.o: anim.c
+	$(CC) -Wall $(OPTIMIZE) $(CFLAGS) -I$(MSOURCE) $(SUPW) -DSBMDEPTH=SCRDEPTH -DRBMDEPTH=SCRDEPTH -c $< -o $@
 
 mandel: mandel.o posix-clockfnpp.o anim.o animtools.o mandel-amiga.o
 	$(CPLUSPLUS) $(LDFLAGS) -o $@ $^ -lpthread
@@ -80,15 +89,22 @@ mandel-amiga13.o: $(MSOURCE)/mandel-amiga.cpp $(MSOURCE)/mandel-arch.h
 	$(CPLUSPLUS) -I$(MSOURCE) -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
 
 anim13.o: anim.c
-	$(CC) -g -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
+	$(CC) -Wall $(OPTIMIZE) -I$(MSOURCE) $(SUPW) -DSBMDEPTH=SCRDEPTH -DRBMDEPTH=SCRDEPTH -mcrt=nix13 -DKICK1 -c $< -o $@
 
 animtools13.o: animtools.c
-	$(CC) -g -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
+	$(CC) -Wall $(OPTIMIZE) $(SUPW) -mcrt=nix13 -DKICK1 -c $< -o $@
 
 posix-clockfncpp13.o: posix-clockfnpp.cpp posix-clockfn.c
 	$(CPLUSPLUS) -g -Wall  $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
 
 mandel13: mandel13.o posix-clockfncpp13.o anim13.o animtools13.o mandel-amiga13.o
+	$(CPLUSPLUS) -N -mcrt=nix13 -o $@ $^
+	$(STRIP) $@
+
+anims13.o: anim.c
+	$(CC) -Wall $(OPTIMIZE) $(SUPW) -DANIM_STANDALONE -mcrt=nix13 -DKICK1 -c $< -o $@
+
+anims13: anims13.o animtools13.o
 	$(CPLUSPLUS) -N -mcrt=nix13 -o $@ $^
 	$(STRIP) $@
 
@@ -105,7 +121,7 @@ clean:
 	rm -f "$(FSUAEBASE)/Save States/a500+hdkick3.2.1/`basename $(DISKNAME) .adf`.sdf" "$(FSUAEBASE)/Save States/a500+hdkick3.2.1/`basename $(HDISKNAME) .hdf`.sdf"
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c  $<
+	$(CC) $(CFLAGS) $(SUPW) -c  $<
 
 #%.o: %.cpp
 #	$(CPLUSPLUS) $(CPPFLAGS) -c $<
