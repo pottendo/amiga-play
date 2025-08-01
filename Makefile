@@ -11,7 +11,7 @@ CPPFLAGS = -g -Wall $(OPTIMIZE) $(KICK)
 OPTIMIZE = -O3
 LDFLAGS = $(KICK) -N
 CPROGRAMS = hello-world hello-pthread anims anims13 #bobs-sprites
-CPPPROGRAMS = mandel mandel13 #hello-cpp 
+CPPPROGRAMS = par-play par-play13 #mandel mandel13 #hello-cpp 
 PROGRAMS = $(CPROGRAMS) $(CPPPROGRAMS)
 COBJECTS = $(addsuffix .o,$(CPROGRAMS))
 CPPOBJECTS = $(addsuffix .o,$(CPPPROGRAMS))
@@ -111,6 +111,16 @@ anims13: anims13.o animtools13.o
 hello-cpp: hello-cpp.o 
 	$(CPLUSPLUS) $(LDFLAGS) -o $@ $^
 	$(STRIP) $@
+
+par-play: par-play.o 
+	$(CPLUSPLUS) $(LDFLAGS) -o $@ $^
+	$(STRIP) $@	
+
+par-play13.o: par-play.cpp
+	$(CPLUSPLUS) -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
+par-play13: par-play13.o 
+	$(CPLUSPLUS) -N -mcrt=nix13  -o $@ $^
+	$(STRIP) $@	
 
 %.o: %.cpp
 	$(CPLUSPLUS) $(CPPFLAGS) -o $@ -c $^

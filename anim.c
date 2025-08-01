@@ -71,7 +71,9 @@ VOID DrawGels(struct Window *win, struct AnimOb **animKey, SHORT dbufing,
 			  WORD *toggleFrame, struct BitMap **myBitMaps);
 
 #ifndef ANIM_STANDALONE
+#define AMIGA_HACK		/* shi** hack necessary to avoid c++ overloading issue in C-sources */
 #include "mandel-arch.h"
+#undef AMIGA_HACK
 #endif
 
 /*--------------------------------------------------------------*/
