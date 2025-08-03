@@ -24,27 +24,23 @@
 #include <clib/alib_protos.h>
 
 #include <stdio.h>
+#include <errno.h>
 
 
 static struct MsgPort *ParallelMP = nullptr;  /* Define storage for one pointer */
 static struct IOExtPar *ParallelIO = nullptr; /* Define storage for one pointer */
 extern struct CIA ciab;
 
-#define CHUNK 8000
-#define SELECT_BIT ((1L << 2)) // | (1L << 1))
-static char str[CHUNK];
+#define BUFSIZE 8000
+static unsigned char str[BUFSIZE];
 
 inline void set_select(bool sel)
 {
-    ciab.ciaddra |= SELECT_BIT; // this tell, select is an output
+    ciab.ciaddra |= CIAF_PRTRSEL; // this tell, select is an output
     if (sel)
-    {
-        ciab.ciapra |= SELECT_BIT; // set it HIGH
-    }
+        ciab.ciapra |= CIAF_PRTRSEL; // set it HIGH
     else
-    {
-        ciab.ciapra &= ~SELECT_BIT; // set it LOW
-    }
+        ciab.ciapra &= ~CIAF_PRTRSEL; // set it LOW
 }
 
 void status_parport(IOExtPar *pario, const char *where = "unknown")
@@ -74,6 +70,9 @@ IOExtPar *open_parport(void)
                 ParallelIO->IOPar.io_Flags = PARF_ACKMODE;
                 DoIO((struct IORequest *)ParallelIO);
                 //set_select(true);
+                ciab.ciaddra |= CIAF_PRTRPOUT; // this tell, select is an output
+                ciab.ciapra &= ~CIAF_PRTRPOUT; // set POUT low
+                ciab.ciaddra &= ~CIAF_PRTRPOUT; // this tell, POUT is an input
                 status_parport(ParallelIO, __FUNCTION__);
             }
             else
@@ -95,66 +94,118 @@ void close_parport(IOExtPar *ParallelIO)
     DeletePort(ParallelMP);
 }
 
-static void busywrite(IOExtPar *ParallelIO)
+int write_parport(IOExtPar *ParallelIO, const unsigned char buf[], size_t len)
 {
-    ULONG WaitMask; /* Collect all signals here       */
-    ULONG Temp;     /* Hey, we all need pockets :-)   */
-    uint8_t i = 1;
+    static ULONG WaitMask = SIGBREAKF_CTRL_C | (1L << ParallelMP->mp_SigBit);
+    ULONG wm;
+    if (ciab.ciapra & CIAF_PRTRPOUT)
+        return 0;
+    set_select(true);   // maybe redundant, but tell we're goint to write by raising SELECT
+    ParallelIO->IOPar.io_Command = CMD_WRITE;
+    // ParallelIO->IOPar.io_Flags = PARF_ACKMODE;
+    ParallelIO->IOPar.io_Length = len;
+    ParallelIO->IOPar.io_Data = (APTR)buf;
+    SendIO((struct IORequest *)ParallelIO); /* execute write */
+    if (ParallelIO->IOPar.io_Error)
+        goto werr;
+    wm = Wait(WaitMask);
+    if (SIGBREAKF_CTRL_C & wm)
+        return -EINTR;
+    if (CheckIO((struct IORequest *)ParallelIO)) /* If request is complete... */
+    {
+        WaitIO((struct IORequest *)ParallelIO); /* clean up and remove reply */
+        if (ParallelIO->IOPar.io_Error)
+            goto werr;
+    }
+    else
+        goto werr;
+    set_select(false);   // lower SELECT to indicate we're done writing
+    return ParallelIO->IOPar.io_Actual;
+werr:
+    //printf("error - %d\n", ParallelIO->IOPar.io_Error);
+    errno = ParallelIO->IOPar.io_Error;
+    set_select(false);   // lower SELECT to indicate we're done writing
+    return -EIO;
+}
 
-    for (int i = 0; i < CHUNK; i++)
+int read_parport(IOExtPar *ParallelIO, const unsigned char buf[], size_t len)
+{
+    static ULONG WaitMask = SIGBREAKF_CTRL_C | (1L << ParallelMP->mp_SigBit);
+    ULONG wm;
+    set_select(false); 
+    ParallelIO->IOPar.io_Length   = len;
+    ParallelIO->IOPar.io_Data     = (APTR)buf;
+    ParallelIO->IOPar.io_Command  = CMD_READ;
+    SendIO((struct IORequest *)ParallelIO);
+    if (ParallelIO->IOPar.io_Error)
+        goto rerr;
+    printf("read returned\n");
+    wm = Wait(WaitMask);
+    if (SIGBREAKF_CTRL_C & wm)
+        return -EINTR;
+    if (CheckIO((struct IORequest *)ParallelIO)) /* If request is complete... */
+    {
+        WaitIO((struct IORequest *)ParallelIO); /* clean up and remove reply */
+        if (ParallelIO->IOPar.io_Error)
+            goto rerr;
+    }
+    else
+        goto rerr;
+    return ParallelIO->IOPar.io_Actual;
+rerr:
+    //printf("error - %d\n", ParallelIO->IOPar.io_Error);
+    errno = ParallelIO->IOPar.io_Error;
+    return -EIO; 
+}
+
+void busywrite(IOExtPar *ParallelIO, int del)
+{
+    for (int i = 0; i < BUFSIZE; i++)
         str[i] = i;
-    /* Precalculate a wait mask for the CTRL-C, CTRL-F and message port
-     * signals.  When one or more signals are received, Wait() will
-     * return.  Press CTRL-C to exit the example.  Press CTRL-F to
-     * wake up the example without doing anything. NOTE: A signal
-     * may show up without an associated message!
-     */
-    WaitMask = SIGBREAKF_CTRL_C | SIGBREAKF_CTRL_F |
-               1L << ParallelMP->mp_SigBit;
-    printf("Sleeping until CTRL-C, CTRL-F, or write finish\n");
-    set_select(true);
     status_parport(ParallelIO, __FUNCTION__);
     while (1)
     {
-        ParallelIO->IOPar.io_Command = CMD_WRITE;
-        ParallelIO->IOPar.io_Flags = PARF_ACKMODE;
-        ParallelIO->IOPar.io_Length = CHUNK;
-        // str[0] = i;
-        // i++;
-
-        ParallelIO->IOPar.io_Data = (APTR) & (str[0]);
-        SendIO((struct IORequest *)ParallelIO); /* execute write */
-        if (ParallelIO->IOPar.io_Error)
-            printf("error - %d\n", ParallelIO->IOPar.io_Error);
-
-        Temp = Wait(WaitMask);
-        //printf("Just woke up (YAWN!)\n");
-        if (SIGBREAKF_CTRL_C & Temp)
+        if (write_parport(ParallelIO, str, BUFSIZE) == -EINTR)
             break;
+        Delay(del);
+    }
+}
 
-        if (CheckIO((struct IORequest *)ParallelIO)) /* If request is complete... */
+static void busyread(IOExtPar *ParallelIO)
+{
+    int res;
+    char t[8];
+    char outstr[BUFSIZE * 4];
+    outstr[0] = '\0';
+    printf("%s: reading parport...\n", __FUNCTION__);
+    while (1)
+    {
+        status_parport(ParallelIO, __FUNCTION__);
+        if ((res = read_parport(ParallelIO, str, 1)) < 0)
         {
-            WaitIO((struct IORequest *)ParallelIO); /* clean up and remove reply */
-            if (ParallelIO->IOPar.io_Error)
-                printf("error - %d\n", ParallelIO->IOPar.io_Error);
+            if (res == -EINTR)
+                printf("%s: EINTR received\n", __FUNCTION__);
+            else
+                printf("%s: read failed received: %d\n", __FUNCTION__, errno);
+            break;
         }
-        Delay(25);
-        if ((i++ % 5) == 0)
+        printf("%s: read %d bytes: ", __FUNCTION__, res);
+        for (int i = 0; i < res; i++)
         {
-            printf("lowering SELECT\n");
-            set_select(false);
-            Delay(25);
-            //set_select(true);
+            snprintf(t, 8, "%02x ", str[i]);
+            strcat(outstr, t);
         }
+        printf("%s\n", outstr);
     }
 }
 
 int main(int argc, char *argv[])
 {
-    printf("playground for parallel port - chunk = %d\n", CHUNK);
+    printf("playground for parallel port - chunk = %d, EINTR = %d\n", BUFSIZE, EINTR);
     if ((ParallelIO = open_parport()) != nullptr)
     {
-        busywrite(ParallelIO);
+        //busywrite(ParallelIO, 25); // 25 ticks delay
+        busyread(ParallelIO);
         close_parport(ParallelIO);
     }
 }
