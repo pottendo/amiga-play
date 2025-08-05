@@ -212,8 +212,8 @@ int main(int argc, char *argv[])
     printf("playground for parallel port - chunk = %d, EINTR = %d\n", BUFSIZE, EINTR);
     if ((ParallelIO = open_parport()) != nullptr)
     {
-        //busywrite(ParallelIO, 25); // 25 ticks delay
-        busyread(ParallelIO, BUFSIZE);
+        busywrite(ParallelIO, 0); // 25 ticks delay
+        //busyread(ParallelIO, BUFSIZE);
         close_parport(ParallelIO);
     }
 }
