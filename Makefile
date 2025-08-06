@@ -33,7 +33,6 @@ disk:
 	$(XDFTOOL) $(D) format "$(VN)"
 	$(XDFTOOL) $(D) boot install boot1x
 	$(XDFTOOL) $(D) write libs
-	$(XDFTOOL) $(D) write devs13 devs
 	$(XDFTOOL) $(D) makedir s
 	$(XDFTOOL) $(D) write Startup-Sequence s
 	$(XDFTOOL) $(D) write c
@@ -46,11 +45,13 @@ $(DISKNAME): $(PROGRAMS) Startup-Sequence
 	rm -f $(DISKNAME)
 	$(XDFTOOL) $(DISKNAME) create
 	make disk D=$@ VN=$(shell basename $@ .adf)
+	$(XDFTOOL) $@ write devs13 devs
 
 $(HDISKNAME): $(PROGRAMS) Startup-Sequence
 	rm -f $(HDISKNAME)
 	$(XDFTOOL) $(HDISKNAME) create size=10Mi
 	make disk D=$@ VN=$(shell basename $@ .hdf)
+	$(XDFTOOL) $@ write devs31 devs
 
 #$(CPROGRAMS): $(COBJECTS)
 hello-world: hello-world.o posix-clockfn.o
