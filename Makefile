@@ -33,6 +33,7 @@ disk:
 	$(XDFTOOL) $(D) format "$(VN)"
 	$(XDFTOOL) $(D) boot install boot1x
 	$(XDFTOOL) $(D) write libs
+	$(XDFTOOL) $(D) write devs13 devs
 	$(XDFTOOL) $(D) makedir s
 	$(XDFTOOL) $(D) write Startup-Sequence s
 	$(XDFTOOL) $(D) write c
