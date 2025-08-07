@@ -2,18 +2,20 @@
 ; pottendo hacks
 
 ;pottendo/time-test
-
+version
 version >kick
 search kick 34.5
 If not Warn
 echo Kick1
 ;pottendo/mandel13
-pottendo/par-play13
+;pottendo/par-play13
+pottendo/par-test13
 Else
 echo Kick2
 ;pottendo/hello-world
 ;pottendo/hello-cpp
 ;pottendo/mandel
 ;pottendo/hello-pthread
-pottendo/par-play
+;pottendo/par-play
+pottendo/par-test
 Endif 

@@ -10,8 +10,8 @@ CFLAGS = -g -Wall $(OPTIMIZE) $(KICK)
 CPPFLAGS = -g -Wall $(OPTIMIZE) $(KICK)
 OPTIMIZE = -O3
 LDFLAGS = $(KICK) -N
-CPROGRAMS = hello-world hello-pthread anims anims13 #bobs-sprites
-CPPPROGRAMS = par-play par-play13 #mandel mandel13 #hello-cpp 
+CPROGRAMS = anims anims13 #bobs-sprites
+CPPPROGRAMS = par-play par-play13 par-test par-test13 #mandel mandel13 #hello-cpp 
 PROGRAMS = $(CPROGRAMS) $(CPPPROGRAMS)
 COBJECTS = $(addsuffix .o,$(CPROGRAMS))
 CPPOBJECTS = $(addsuffix .o,$(CPPPROGRAMS))
@@ -45,11 +45,13 @@ $(DISKNAME): $(PROGRAMS) Startup-Sequence
 	rm -f $(DISKNAME)
 	$(XDFTOOL) $(DISKNAME) create
 	make disk D=$@ VN=$(shell basename $@ .adf)
+	$(XDFTOOL) $@ write devs13 devs
 
 $(HDISKNAME): $(PROGRAMS) Startup-Sequence
 	rm -f $(HDISKNAME)
 	$(XDFTOOL) $(HDISKNAME) create size=10Mi
 	make disk D=$@ VN=$(shell basename $@ .hdf)
+	$(XDFTOOL) $@ write devs31 devs
 
 #$(CPROGRAMS): $(COBJECTS)
 hello-world: hello-world.o posix-clockfn.o
@@ -118,10 +120,21 @@ par-play: par-play.o
 
 par-play13.o: par-play.cpp
 	$(CPLUSPLUS) -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
+
 par-play13: par-play13.o 
 	$(CPLUSPLUS) -N -mcrt=nix13  -o $@ $^
 	$(STRIP) $@	
 
+par-test: par-test.o 
+	$(CPLUSPLUS) $(LDFLAGS) -o $@ $^
+	$(STRIP) $@	
+
+par-test13.o: par-test.cpp
+	$(CPLUSPLUS) -Wall $(OPTIMIZE) -mcrt=nix13 -DKICK1 -c $< -o $@
+
+par-test13: par-test13.o 
+	$(CPLUSPLUS) -N -mcrt=nix13  -o $@ $^
+	$(STRIP) $@	
 %.o: %.cpp
 	$(CPLUSPLUS) $(CPPFLAGS) -o $@ -c $^
 
