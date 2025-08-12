@@ -22,15 +22,17 @@ static unsigned char str[BUFSIZE];
 
 static void busywrite(int del)
 {
+    int i = 0;
     struct IOExtPar *ParallelIO = nullptr;
-    for (int i = 0; i < BUFSIZE; i++)
-        str[i] = i;
+    for (i = 0; i < BUFSIZE; i++)
+        str[i] = (unsigned char)(i & 0xff);
     ParallelIO = open_parport();
     if (ParallelIO)
     {
         status_parport(ParallelIO, __FUNCTION__);
         while (1)
         {
+            memset(str, (unsigned char) (i++) &0xff, BUFSIZE);
             if (write_parport(ParallelIO, str, BUFSIZE) == -EINTR)
                 break;
             Delay(del);
@@ -227,7 +229,7 @@ VOID handleWindow(struct Window *win, struct Menu *menuStrip)
                     {
                         switch(itemNum) {
                             case 1:
-                                busywrite(25);
+                                busywrite(0);
                                 break;
                             case 2:
                                 busyread(BUFSIZE);
