@@ -20,7 +20,7 @@ static struct MsgPort *ParallelMP = nullptr;  /* Define storage for one pointer 
 static struct IOExtPar *ParallelIO = nullptr; /* Define storage for one pointer */
 extern struct CIA ciab;
 
-#define SELECT CIAF_PRTRPOUT
+#define SELECT CIAF_PRTRPOUT    // POUT indicates parallel port write mode
 
 inline void set_select(UBYTE pin, bool sel)
 {
@@ -36,7 +36,12 @@ void status_parport(IOExtPar *pario, const char *where)
     int err = pario->IOPar.io_Error;
     pario->IOPar.io_Command = PDCMD_QUERY; /* indicate query */
     DoIO((struct IORequest *)pario);
-    printf("%s(%s), err=%d: 0x%02x\n", __FUNCTION__, where, err, pario->io_Status);
+    printf("%s(%s), err=%d, status %s/%s/%s/%s/", __FUNCTION__, where, err, 
+        pario->io_Status & 1 ? "busy" : "idle",
+        pario->io_Status & 2 ? "parport busy" : "parport free",
+        pario->io_Status & 4 ? "select" : "not selected",
+        pario->io_Status & 8 ? "write" : "read"
+    );
 }
 
 IOExtPar *open_parport(void)
@@ -57,10 +62,7 @@ IOExtPar *open_parport(void)
                 ParallelIO->IOPar.io_Command = PDCMD_SETPARAMS;
                 ParallelIO->IOPar.io_Flags = PARF_ACKMODE;
                 DoIO((struct IORequest *)ParallelIO);
-                //set_select(true);
-                //ciab.ciaddra |= CIAF_PRTRPOUT; // this tell, select is an output
-                //ciab.ciapra &= ~CIAF_PRTRPOUT; // set POUT low
-                //ciab.ciaddra &= ~CIAF_PRTRPOUT; // this tell, POUT is an input
+                ciab.ciaddra &= ~CIAF_PRTRBUSY; // this tell, BUSY is an input
                 status_parport(ParallelIO, __FUNCTION__);
                 set_select(SELECT, false); // receive mode
             }
@@ -88,9 +90,10 @@ int write_parport(IOExtPar *ParallelIO, const unsigned char buf[], size_t len)
 {
     static ULONG WaitMask = SIGBREAKF_CTRL_C | (1L << ParallelMP->mp_SigBit);
     ULONG wm;
-    //if (ciab.ciapra & CIAF_PRTRPOUT)
-    //    return 0;
+    if (ciab.ciapra & CIAF_PRTRBUSY)
+        return -EBUSY;
     set_select(SELECT, true);   // maybe redundant, but tell we're goint to write by raising SELECT
+    //status_parport(ParallelIO, __FUNCTION__);
     ParallelIO->IOPar.io_Command = CMD_WRITE;
     //ParallelIO->IOPar.io_Flags = PARF_ACKMODE;
     ParallelIO->IOPar.io_Length = len;
@@ -123,6 +126,7 @@ int read_parport(IOExtPar *ParallelIO, const unsigned char buf[], size_t len)
     static ULONG WaitMask = SIGBREAKF_CTRL_C | SIGBREAKF_CTRL_F | (1L << ParallelMP->mp_SigBit);
     ULONG wm;
     set_select(SELECT, false); 
+    //status_parport(ParallelIO, __FUNCTION__);
     ParallelIO->IOPar.io_Length   = len;
     ParallelIO->IOPar.io_Data     = (APTR)buf;
     ParallelIO->IOPar.io_Command  = CMD_READ;

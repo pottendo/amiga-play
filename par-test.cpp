@@ -22,9 +22,9 @@ static unsigned char str[BUFSIZE];
 
 static void busywrite(int del)
 {
-    int i = 0;
+    int j = 0;
     struct IOExtPar *ParallelIO = nullptr;
-    for (i = 0; i < BUFSIZE; i++)
+    for (int i = 0; i < BUFSIZE; i++)
         str[i] = (unsigned char)(i & 0xff);
     ParallelIO = open_parport();
     if (ParallelIO)
@@ -32,11 +32,22 @@ static void busywrite(int del)
         status_parport(ParallelIO, __FUNCTION__);
         while (1)
         {
-            memset(str, (unsigned char) (i++) &0xff, BUFSIZE);
-            if (write_parport(ParallelIO, str, BUFSIZE) == -EINTR)
+            memset(str, (unsigned char) (j++) &0xff, BUFSIZE);
+            switch(write_parport(ParallelIO, str, BUFSIZE))
+            {
+            case -EINTR:
+                printf("%s: EINTR received\n", __FUNCTION__);
+                goto done;
                 break;
-            Delay(del);
+            case -EBUSY:
+                printf("%s: EBUSY received\n", __FUNCTION__);
+                Delay(13);
+                break;
+            default:
+                Delay(del);
+            }
         }
+    done:
         close_parport(ParallelIO);
     }
     printf("%s done\n", __FUNCTION__);
@@ -81,7 +92,17 @@ static void busyread(int len)
     printf("%s done\n", __FUNCTION__);
 }
 
-
+static void statparport(void)
+{
+    struct IOExtPar *ParallelIO = nullptr;
+    ParallelIO = open_parport();
+    if (ParallelIO)
+    {
+        status_parport(ParallelIO, __FUNCTION__);
+        close_parport(ParallelIO);
+    }
+    printf("%s done\n", __FUNCTION__);
+}
 // ------------------------------- UI & Main --------------------
 
 
@@ -108,6 +129,7 @@ struct IntuiText menuIText[] =
         {0, 1, JAM2, 0, 1, &Topaz80, (STRPTR) "Dump: Amiga -> ESP", NULL},
         {0, 1, JAM2, 0, 1, &Topaz80, (STRPTR) "Dump: ESP -> Amiga", NULL},
         {0, 1, JAM2, 0, 1, &Topaz80, (STRPTR) "Mandelbrot", NULL},
+        {0, 1, JAM2, 0, 1, &Topaz80, (STRPTR) "Parport status", NULL},
         {0, 1, JAM2, 0, 1, &Topaz80, (STRPTR) "Quit", NULL}};
 
 #if 0
@@ -142,10 +164,14 @@ struct MenuItem menu1[] = {
          &menu1[4], 0, 3 * MENHEIGHT, MENWIDTH, MENHEIGHT,
          ITEMTEXT | MENUTOGGLE | ITEMENABLED | HIGHCOMP,
          0, (APTR)&menuIText[3], NULL, 3, NULL, 0},
-        {/* Quit    */
-         NULL, 0, 4 * MENHEIGHT, MENWIDTH, MENHEIGHT,
+        {/* Status    */
+         &menu1[5], 0, 4 * MENHEIGHT, MENWIDTH, MENHEIGHT,
          ITEMTEXT | MENUTOGGLE | ITEMENABLED | HIGHCOMP,
          0, (APTR)&menuIText[4], NULL, 4, NULL, 0},
+        {/* Quit */
+         NULL, 0, 5 * MENHEIGHT, MENWIDTH, MENHEIGHT,
+         ITEMTEXT | MENUTOGGLE | ITEMENABLED | HIGHCOMP,
+         0, (APTR)&menuIText[5], NULL, 5, NULL, 0},
 };
 
 /* We only use a single menu, but the code is generalizable to */
@@ -234,6 +260,9 @@ VOID handleWindow(struct Window *win, struct Menu *menuStrip)
                             case 2:
                                 busyread(BUFSIZE);
                                 break;
+                            case 4:
+                                statparport();
+                                break;
                             case 0:
                             case 3:
                                 printf("not implemented\n");
@@ -244,7 +273,7 @@ VOID handleWindow(struct Window *win, struct Menu *menuStrip)
                     /* This one is the quit menu selection...
                     ** stop if we get it, and don't process any more.
                     */
-                    if ((menuNum == 0) && (itemNum == 4))
+                    if ((menuNum == 0) && (itemNum == 5))
                         done = TRUE;
 
                     menuNumber = item->NextSelect;
