@@ -36,11 +36,10 @@ void status_parport(IOExtPar *pario, const char *where)
     int err = pario->IOPar.io_Error;
     pario->IOPar.io_Command = PDCMD_QUERY; /* indicate query */
     DoIO((struct IORequest *)pario);
-    printf("%s(%s), err=%d, status %s/%s/%s/%s/", __FUNCTION__, where, err, 
+    printf("%s(%s), err=%d, status %s/%s/%s\n", __FUNCTION__, where, err, 
         pario->io_Status & 1 ? "busy" : "idle",
         pario->io_Status & 2 ? "parport busy" : "parport free",
-        pario->io_Status & 4 ? "select" : "not selected",
-        pario->io_Status & 8 ? "write" : "read"
+        pario->io_Status & 4 ? "select" : "not selected"
     );
 }
 
@@ -86,7 +85,7 @@ int close_parport(IOExtPar *ParallelIO)
     return 0;
 }
 
-int write_parport(IOExtPar *ParallelIO, const unsigned char buf[], size_t len)
+int write_parport(IOExtPar *ParallelIO, const char buf[], size_t len)
 {
     static ULONG WaitMask = SIGBREAKF_CTRL_C | (1L << ParallelMP->mp_SigBit);
     ULONG wm;
@@ -121,11 +120,13 @@ werr:
     return -EIO;
 }
 
-int read_parport(IOExtPar *ParallelIO, const unsigned char buf[], size_t len)
+int read_parport(IOExtPar *ParallelIO, char buf[], size_t len)
 {
     static ULONG WaitMask = SIGBREAKF_CTRL_C | SIGBREAKF_CTRL_F | (1L << ParallelMP->mp_SigBit);
     ULONG wm;
-    set_select(SELECT, false); 
+    set_select(SELECT, false);
+    while (!(ciab.ciapra & CIAF_PRTRBUSY)) // wait until BUSY is low
+        Delay(1);
     //status_parport(ParallelIO, __FUNCTION__);
     ParallelIO->IOPar.io_Length   = len;
     ParallelIO->IOPar.io_Data     = (APTR)buf;
@@ -136,8 +137,6 @@ int read_parport(IOExtPar *ParallelIO, const unsigned char buf[], size_t len)
     wm = Wait(WaitMask);
     if (SIGBREAKF_CTRL_C & wm)
         return -EINTR;
-    //status_parport(ParallelIO, __FUNCTION__);
-    
     if (CheckIO((struct IORequest *)ParallelIO)) /* If request is complete... */
     {
         WaitIO((struct IORequest *)ParallelIO); /* clean up and remove reply */

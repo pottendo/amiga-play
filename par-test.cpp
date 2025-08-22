@@ -18,19 +18,74 @@
 #include "parport.h"
 
 #define BUFSIZE 8000
-static unsigned char str[BUFSIZE];
+static char str[BUFSIZE];
+
+static void echo(void)
+{
+    struct IOExtPar *ParallelIO = nullptr;
+    int res;
+    ParallelIO = open_parport();
+    if (ParallelIO)
+    {
+        printf("%s: echoing parport...\n", __FUNCTION__);
+        for (int i = 0; i < 20; i++) 
+        {
+            char cmd_arg[32];
+            char cmd[16] = "ECHO";
+            snprintf(cmd_arg, 32, "Message %d from Amiga", i);
+            printf("Amiga -> '%s'\n", cmd_arg);
+            if ((res = write_parport(ParallelIO, cmd, 4)) < 0)
+            {
+                if (res == -EINTR)
+                    printf("%s: EINTR received\n", __FUNCTION__);
+                else
+                    printf("%s: write failed, received: %d\n", __FUNCTION__, errno);
+                break;
+            }
+            if ((res = write_parport(ParallelIO, cmd_arg, strlen(cmd_arg) + 1)) < 0)
+            {
+                if (res == -EINTR)
+                    printf("%s: EINTR received\n", __FUNCTION__);
+                else
+                    printf("%s: write failed, received: %d\n", __FUNCTION__, errno);
+                break;
+            }
+            //Delay(1);
+            if ((res = read_parport(ParallelIO, cmd_arg, strlen(cmd_arg))) < 0)
+            {
+                if (res == -EINTR)
+                    printf("%s: EINTR received\n", __FUNCTION__);
+                else
+                    printf("%s: read failed, received: %d\n", __FUNCTION__, errno);
+                break;
+            }
+            cmd_arg[res] = '\0';
+            printf("ESP -> '%s'\n", cmd_arg);
+        }
+        close_parport(ParallelIO);
+    }
+    printf("%s done\n", __FUNCTION__);
+}
 
 static void busywrite(int del)
 {
-    int j = 0;
+    int j = 0, res;
+    int end = 16;
     struct IOExtPar *ParallelIO = nullptr;
     for (int i = 0; i < BUFSIZE; i++)
         str[i] = (unsigned char)(i & 0xff);
     ParallelIO = open_parport();
     if (ParallelIO)
     {
-        status_parport(ParallelIO, __FUNCTION__);
-        while (1)
+        if ((res = write_parport(ParallelIO, "DUM3", 4)) < 0)
+        {
+            if (res == -EINTR)
+                printf("%s: EINTR received\n", __FUNCTION__);
+            else
+                printf("%s: write failed, error: %d\n", __FUNCTION__, errno);
+            goto done;
+        }
+        do
         {
             memset(str, (unsigned char) (j++) &0xff, BUFSIZE);
             switch(write_parport(ParallelIO, str, BUFSIZE))
@@ -46,7 +101,7 @@ static void busywrite(int del)
             default:
                 Delay(del);
             }
-        }
+        } while (--end);
     done:
         close_parport(ParallelIO);
     }
@@ -57,11 +112,20 @@ static void busyread(int len)
 {
     struct IOExtPar *ParallelIO = nullptr;
     int res, i = 0;
+    int end = 16;
     ParallelIO = open_parport();
     if (ParallelIO)
     {
         printf("%s: reading parport...\n", __FUNCTION__);
-        while (1)
+        if ((res = write_parport(ParallelIO, "DUM4", 4)) < 0)
+        {
+            if (res == -EINTR)
+                printf("%s: EINTR received\n", __FUNCTION__);
+            else
+                printf("%s: write failed, error: %d\n", __FUNCTION__, errno);
+            goto done;
+        }        
+        do
         {
             // status_parport(ParallelIO, __FUNCTION__);
             if ((res = read_parport(ParallelIO, str, len)) < 0)
@@ -86,7 +150,8 @@ static void busyread(int len)
                 printf("%s\n", outstr);
                 outstr[0] = '\0';
             }
-        }
+        } while (--end);
+    done:
         close_parport(ParallelIO);
     }
     printf("%s done\n", __FUNCTION__);
@@ -254,6 +319,9 @@ VOID handleWindow(struct Window *win, struct Menu *menuStrip)
                     if (menuNum == 0)
                     {
                         switch(itemNum) {
+                            case 0:
+                                echo();
+                                break;
                             case 1:
                                 busywrite(0);
                                 break;
@@ -263,7 +331,6 @@ VOID handleWindow(struct Window *win, struct Menu *menuStrip)
                             case 4:
                                 statparport();
                                 break;
-                            case 0:
                             case 3:
                                 printf("not implemented\n");
                             default:
