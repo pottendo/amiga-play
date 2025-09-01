@@ -249,7 +249,7 @@ static void mandelbrot(void)
             x++;
             //printf("%s: px(%d, %d) -> %d\n", __FUNCTION__, pxbuf[0] + pxbuf[1] * 256, pxbuf[2], pxbuf[3]);
         }
-        if (read_parport(ParallelIO, (char *)pxbuf, 4) < 0)
+        if (read_parport(ParallelIO, (char *)pxbuf, 1) < 0)
             perror("final read");
     done:
         close_parport(ParallelIO);
