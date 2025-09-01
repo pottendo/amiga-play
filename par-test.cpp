@@ -19,6 +19,7 @@
 
 #define BUFSIZE 8000
 static char str[BUFSIZE];
+static struct Window *win = NULL;
 
 static void echo(void)
 {
@@ -157,6 +158,105 @@ static void busyread(int len)
     printf("%s done\n", __FUNCTION__);
 }
 
+static void readwrite(int len)
+{
+    struct IOExtPar *ParallelIO = nullptr;
+    int res;
+    int end = 1;
+    ParallelIO = open_parport();
+    if (ParallelIO)
+    {
+        char cmd[16] = "READ  ";
+        cmd[4] = (len & 0xff);
+        cmd[5] = ((len >> 8) & 0xff);
+        printf("%s: echo parport...\n", __FUNCTION__);
+        if ((res = write_parport(ParallelIO, cmd, 6)) < 0)
+        {
+            if (res == -EINTR)
+                printf("%s: EINTR received\n", __FUNCTION__);
+            else
+                printf("%s: write failed, error: %d\n", __FUNCTION__, errno);
+            goto done;
+        }        
+        do
+        {
+            if ((res = read_parport(ParallelIO, str, len)) < 0)
+            {
+                if (res == -EINTR)
+                    printf("%s: EINTR received\n", __FUNCTION__);
+                else
+                    printf("%s: read failed, received: %d\n", __FUNCTION__, errno);
+                break;
+            }
+            printf("%s: read %d bytes\n", __FUNCTION__, res);
+            if ((res = write_parport(ParallelIO, str, len)) < 0)
+            {
+                if (res == -EINTR)
+                    printf("%s: EINTR received\n", __FUNCTION__);
+                else
+                    printf("%s: write failed, error: %d\n", __FUNCTION__, errno);
+                break;
+            }
+            printf("%s: wrote %d bytes\n", __FUNCTION__, res);
+        } while (--end);
+    done:
+        close_parport(ParallelIO);
+    }
+}
+
+static void plot(int x, int y, int col)
+{
+    struct RastPort *rp = win->RPort;
+
+    if ((x >= win->Width) || (y >= win->Height) || (x < 0) || (y < 0))
+        return;
+    SetAPen(rp, col & 0x0f);
+    WritePixel(rp, x, y);
+}
+
+static void mandelbrot(void)
+{
+    struct IOExtPar *ParallelIO = nullptr;
+    ParallelIO = open_parport();
+    if (ParallelIO)
+    {
+        printf("%s: mandelbrot parport...\n", __FUNCTION__);
+        int res;
+        int x = 0;
+        unsigned char pxbuf[2000];
+        unsigned char cmd[16] = "MAND";
+        cmd[4] = 0;
+        cmd[5] = 0;
+        cmd[6] = 0;
+        cmd[7] = 0x3f;
+        cmd[8] = 1;
+        cmd[9] = 199;
+        
+        if ((res = write_parport(ParallelIO, (char *)cmd, 10)) < 0)
+        {
+            if (res == -EINTR)
+                printf("%s: EINTR received\n", __FUNCTION__);
+            else
+                printf("%s: write failed, error: %d\n", __FUNCTION__, errno);
+            goto done;
+        }
+        while ((x < 160) && ((res = read_parport(ParallelIO, (char *)pxbuf, 5 * 200)) > 0))
+        {   
+            for (int y = 0; y < 5*200; y+=5)
+            {
+                plot(pxbuf[y+2] + pxbuf[y+3] * 256, pxbuf[y+4], pxbuf[y+1]);
+            }
+            x++;
+            //printf("%s: px(%d, %d) -> %d\n", __FUNCTION__, pxbuf[0] + pxbuf[1] * 256, pxbuf[2], pxbuf[3]);
+        }
+        if (read_parport(ParallelIO, (char *)pxbuf, 4) < 0)
+            perror("final read");
+    done:
+        close_parport(ParallelIO);
+    }
+    printf("%s done\n", __FUNCTION__);
+}
+
 static void statparport(void)
 {
     struct IOExtPar *ParallelIO = nullptr;
@@ -191,9 +291,10 @@ struct TextAttr Topaz80 =
 struct IntuiText menuIText[] =
     {
         {0, 1, JAM2, 0, 1, &Topaz80, (STRPTR) "Echo", NULL},
-        {0, 1, JAM2, 0, 1, &Topaz80, (STRPTR) "Dump: Amiga -> ESP", NULL},
-        {0, 1, JAM2, 0, 1, &Topaz80, (STRPTR) "Dump: ESP -> Amiga", NULL},
-        {0, 1, JAM2, 0, 1, &Topaz80, (STRPTR) "Mandelbrot", NULL},
+        {0, 1, JAM2, 0, 1, &Topaz80, (STRPTR) "DUM3: Amiga -> ESP", NULL},
+        {0, 1, JAM2, 0, 1, &Topaz80, (STRPTR) "DUM4: ESP -> Amiga", NULL},
+        {0, 1, JAM2, 0, 1, &Topaz80, (STRPTR) "READ: ESP -> Amiga", NULL},
+        {0, 1, JAM2, 0, 1, &Topaz80, (STRPTR) "MAND: Mandelbrot", NULL},
         {0, 1, JAM2, 0, 1, &Topaz80, (STRPTR) "Parport status", NULL},
         {0, 1, JAM2, 0, 1, &Topaz80, (STRPTR) "Quit", NULL}};
 
@@ -217,26 +318,30 @@ struct MenuItem menu1[] = {
          &menu1[1], 0, 0, MENWIDTH, MENHEIGHT,
          ITEMTEXT | MENUTOGGLE | ITEMENABLED | HIGHCOMP,
          0, (APTR)&menuIText[0], NULL, 0, NULL, 0},
-        {/* Dump1    */
+        {/* Dump3    */
          &menu1[2], 0, MENHEIGHT, MENWIDTH, MENHEIGHT,
          ITEMTEXT | MENUTOGGLE | ITEMENABLED | HIGHCOMP,
          0, (APTR)&menuIText[1], NULL, 1, NULL, 0},
-        {/* Dump2   */
+        {/* Dump4   */
          &menu1[3], 0, 2 * MENHEIGHT, MENWIDTH, MENHEIGHT,
          ITEMTEXT | MENUTOGGLE | ITEMENABLED | HIGHCOMP,
          0, (APTR)&menuIText[2], NULL, 2, NULL, 0},
-        {/* Mandelbrot   */
+        {/* READ   */
          &menu1[4], 0, 3 * MENHEIGHT, MENWIDTH, MENHEIGHT,
          ITEMTEXT | MENUTOGGLE | ITEMENABLED | HIGHCOMP,
          0, (APTR)&menuIText[3], NULL, 3, NULL, 0},
-        {/* Status    */
+        {/* Mandelbrot   */
          &menu1[5], 0, 4 * MENHEIGHT, MENWIDTH, MENHEIGHT,
          ITEMTEXT | MENUTOGGLE | ITEMENABLED | HIGHCOMP,
          0, (APTR)&menuIText[4], NULL, 4, NULL, 0},
-        {/* Quit */
-         NULL, 0, 5 * MENHEIGHT, MENWIDTH, MENHEIGHT,
+        {/* Status    */
+         &menu1[6], 0, 5 * MENHEIGHT, MENWIDTH, MENHEIGHT,
          ITEMTEXT | MENUTOGGLE | ITEMENABLED | HIGHCOMP,
          0, (APTR)&menuIText[5], NULL, 5, NULL, 0},
+        {/* Quit */
+         NULL, 0, 6 * MENHEIGHT, MENWIDTH, MENHEIGHT,
+         ITEMTEXT | MENUTOGGLE | ITEMENABLED | HIGHCOMP,
+         0, (APTR)&menuIText[6], NULL, 6, NULL, 0},
 };
 
 /* We only use a single menu, but the code is generalizable to */
@@ -256,7 +361,7 @@ struct Menu menustrip[NUM_MENUS] = {
         }};
 
 struct NewWindow mynewWindow = {
-        40, 40, 300, 100, 0, 1, IDCMP_CLOSEWINDOW | IDCMP_MENUPICK,
+        40, 40, 160, 200, 0, 1, IDCMP_CLOSEWINDOW | IDCMP_MENUPICK,
         WFLG_DRAGBAR | WFLG_ACTIVATE | WFLG_CLOSEGADGET, NULL, NULL,
         (STRPTR) "Menu Test Window", NULL, NULL, 0, 0, 0, 0, WBENCHSCREEN};
 
@@ -328,11 +433,16 @@ VOID handleWindow(struct Window *win, struct Menu *menuStrip)
                             case 2:
                                 busyread(BUFSIZE);
                                 break;
+                            case 3:
+                                readwrite(BUFSIZE);
+                                break;
                             case 4:
+                                //plot();
+                                mandelbrot();
+                                break;
+                            case 5:
                                 statparport();
                                 break;
-                            case 3:
-                                printf("not implemented\n");
                             default:
                                 break;
                         }
@@ -340,7 +450,7 @@ VOID handleWindow(struct Window *win, struct Menu *menuStrip)
                     /* This one is the quit menu selection...
                     ** stop if we get it, and don't process any more.
                     */
-                    if ((menuNum == 0) && (itemNum == 5))
+                    if ((menuNum == 0) && (itemNum == 6))
                         done = TRUE;
 
                     menuNumber = item->NextSelect;
@@ -354,7 +464,6 @@ VOID handleWindow(struct Window *win, struct Menu *menuStrip)
 
 int main(int argc, char **argv)
 {
-    struct Window *win = NULL;
     UWORD left, m;
 
     /* Open the Graphics Library */

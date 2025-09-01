@@ -63,7 +63,7 @@ IOExtPar *open_parport(void)
                 DoIO((struct IORequest *)ParallelIO);
                 ciab.ciaddra &= ~CIAF_PRTRBUSY; // this tell, BUSY is an input
                 status_parport(ParallelIO, __FUNCTION__);
-                set_select(SELECT, false); // receive mode
+                set_select(SELECT, false); // receive/read mode: SELECT high
             }
             else
             {
@@ -91,7 +91,7 @@ int write_parport(IOExtPar *ParallelIO, const char buf[], size_t len)
     ULONG wm;
     if (ciab.ciapra & CIAF_PRTRBUSY)
         return -EBUSY;
-    set_select(SELECT, true);   // maybe redundant, but tell we're goint to write by raising SELECT
+    set_select(SELECT, true);   // maybe redundant, but tell we're goint to write by lowering SELECT
     //status_parport(ParallelIO, __FUNCTION__);
     ParallelIO->IOPar.io_Command = CMD_WRITE;
     //ParallelIO->IOPar.io_Flags = PARF_ACKMODE;
@@ -111,12 +111,12 @@ int write_parport(IOExtPar *ParallelIO, const char buf[], size_t len)
     }
     else
         goto werr;
-    set_select(SELECT, false);   // lower SELECT to indicate we're done writing
+    set_select(SELECT, false);   // raise SELECT to indicate we're done writing
     return ParallelIO->IOPar.io_Actual;
 werr:
     //printf("error - %d\n", ParallelIO->IOPar.io_Error);
     errno = ParallelIO->IOPar.io_Error;
-    set_select(SELECT, false);   // lower SELECT to indicate we're done writing
+    set_select(SELECT, false);   // raise SELECT to indicate we're done writing
     return -EIO;
 }
 
@@ -124,16 +124,16 @@ int read_parport(IOExtPar *ParallelIO, char buf[], size_t len)
 {
     static ULONG WaitMask = SIGBREAKF_CTRL_C | SIGBREAKF_CTRL_F | (1L << ParallelMP->mp_SigBit);
     ULONG wm;
-    set_select(SELECT, false);
+    set_select(SELECT, false); // tell we're going to read by raising SELECT
     while (!(ciab.ciapra & CIAF_PRTRBUSY)) // wait until BUSY is low
         Delay(1);
-    //status_parport(ParallelIO, __FUNCTION__);
     ParallelIO->IOPar.io_Length   = len;
     ParallelIO->IOPar.io_Data     = (APTR)buf;
     ParallelIO->IOPar.io_Command  = CMD_READ;
     SendIO((struct IORequest *)ParallelIO);
     if (ParallelIO->IOPar.io_Error)
         goto rerr;
+    //status_parport(ParallelIO, __FUNCTION__);
     wm = Wait(WaitMask);
     if (SIGBREAKF_CTRL_C & wm)
         return -EINTR;
